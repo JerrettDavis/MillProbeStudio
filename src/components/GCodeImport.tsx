@@ -8,7 +8,7 @@ import { parseGCode, type ParsedGCodeResult } from '@/utils/gcodeParser';
 import type { ProbeOperation, MachineSettings } from '@/types/machine';
 
 interface GCodeImportProps {
-  onImport: (probeSequence: ProbeOperation[], spindleSpeed?: number, units?: 'mm' | 'inch') => void;
+  onImport: (parseResult: ParsedGCodeResult) => void;
   machineSettings: MachineSettings;
 }
 
@@ -27,7 +27,7 @@ const GCodeImport: React.FC<GCodeImportProps> = ({ onImport, machineSettings }) 
   const handleImport = () => {
     if (!parseResult) return;
     
-    onImport(parseResult.probeSequence, parseResult.spindleSpeed, parseResult.units);
+    onImport(parseResult);
     
     // Clear the input and result after successful import
     setGcodeInput('');

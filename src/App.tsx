@@ -4,7 +4,7 @@ import ProbeSequenceEditor from '@/components/ProbeSequence';
 import GCodeImport from '@/components/GCodeImport';
 import SequenceVisualization from '@/components/SequenceVisualization';
 import GCodeOutput from '@/components/GCodeOutput';
-import type { MachineSettings, ProbeOperation, MovementStep } from './types/machine';
+import type { MachineSettings, ProbeOperation, MovementStep, ProbeSequenceSettings } from './types/machine';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
@@ -46,13 +46,16 @@ const defaultMachineSettings: MachineSettings = {
       max: -78.50
     }
   },
-  initialPosition: { X: -78, Y: -100, Z: -41 },
   spindleSpeed: 5000
 };
 
 const App = () => {
   const [machineSettings, setMachineSettings] = useState<MachineSettings>(defaultMachineSettings);
   const [probeSequence, setProbeSequence] = useState<ProbeOperation[]>([]);
+  const [probeSequenceSettings, setProbeSequenceSettings] = useState({
+    initialPosition: { X: -78, Y: -100, Z: -41 },
+    dwellsBeforeProbe: 15
+  });
   const [generatedGCode, setGeneratedGCode] = useState<string>('');
   const [toolSizeInput, setToolSizeInput] = useState<string>('1/8');
   const [toolSizeUnit, setToolSizeUnit] = useState<'fraction' | 'inch' | 'mm'>('fraction');
@@ -95,6 +98,23 @@ const App = () => {
           [field]: value
         }
       }
+    }));
+  };
+
+  const updateInitialPosition = (axis: 'X' | 'Y' | 'Z', value: number) => {
+    setProbeSequenceSettings(prev => ({
+      ...prev,
+      initialPosition: {
+        ...prev.initialPosition,
+        [axis]: value
+      }
+    }));
+  };
+
+  const updateDwellsBeforeProbe = (value: number) => {
+    setProbeSequenceSettings(prev => ({
+      ...prev,
+      dwellsBeforeProbe: value
     }));
   };
 
@@ -164,22 +184,37 @@ const App = () => {
     ));
   };
 
-  const handleGCodeImport = (probeSequence: ProbeOperation[], spindleSpeed?: number, units?: 'mm' | 'inch') => {
+  const handleGCodeImport = (parseResult: { probeSequence: ProbeOperation[]; initialPosition?: { X: number; Y: number; Z: number }; dwellsBeforeProbe?: number; spindleSpeed?: number; units?: 'mm' | 'inch' }) => {
     // Update probe sequence
-    setProbeSequence(probeSequence);
+    setProbeSequence(parseResult.probeSequence);
     
-    // Update machine settings if provided
-    if (spindleSpeed) {
-      setMachineSettings(prev => ({
+    // Update probe sequence settings if provided
+    if (parseResult.initialPosition) {
+      setProbeSequenceSettings(prev => ({
         ...prev,
-        spindleSpeed
+        initialPosition: parseResult.initialPosition!
       }));
     }
     
-    if (units) {
+    if (parseResult.dwellsBeforeProbe) {
+      setProbeSequenceSettings(prev => ({
+        ...prev,
+        dwellsBeforeProbe: parseResult.dwellsBeforeProbe!
+      }));
+    }
+    
+    // Update machine settings if provided
+    if (parseResult.spindleSpeed) {
       setMachineSettings(prev => ({
         ...prev,
-        units
+        spindleSpeed: parseResult.spindleSpeed!
+      }));
+    }
+    
+    if (parseResult.units) {
+      setMachineSettings(prev => ({
+        ...prev,
+        units: parseResult.units!
       }));
     }
   };
@@ -197,9 +232,9 @@ const App = () => {
     gcode += padLine(`G2${isMM ? 1 : 0}`, `Set units to ${isMM ? 'millimeters' : 'inches'}`) + '\n';
 
     // Initial positioning
-    gcode += padLine(`G90 G53 G0 Z${machineSettings.initialPosition.Z}`, 'Absolute move in machine coordinates to Z') + '\n';
-    gcode += padLine(`G90 G53 G0 Y${machineSettings.initialPosition.Y}`, 'Absolute move in machine coordinates to Y') + '\n';
-    gcode += padLine(`G90 G53 G0 X${machineSettings.initialPosition.X}`, 'Absolute move in machine coordinates to X') + '\n\n';
+    gcode += padLine(`G90 G53 G0 Z${probeSequenceSettings.initialPosition.Z}`, 'Absolute move in machine coordinates to Z') + '\n';
+    gcode += padLine(`G90 G53 G0 Y${probeSequenceSettings.initialPosition.Y}`, 'Absolute move in machine coordinates to Y') + '\n';
+    gcode += padLine(`G90 G53 G0 X${probeSequenceSettings.initialPosition.X}`, 'Absolute move in machine coordinates to X') + '\n\n';
 
     // Spindle start
     gcode += padLine(`S${machineSettings.spindleSpeed} M4`, `Start spindle in reverse at ${machineSettings.spindleSpeed} RPM`) + '\n';
@@ -248,7 +283,7 @@ const App = () => {
       }
 
       // Buffer clearing
-      for (let i = 0; i < 15; i++) {
+      for (let i = 0; i < probeSequenceSettings.dwellsBeforeProbe; i++) {
         gcode += padLine('G4 P0.01', 'Empty Buffer') + '\n';
       }
       gcode += '\n';
@@ -337,6 +372,10 @@ const App = () => {
               />
               <ProbeSequenceEditor
                 probeSequence={probeSequence}
+                initialPosition={probeSequenceSettings.initialPosition}
+                updateInitialPosition={updateInitialPosition}
+                dwellsBeforeProbe={probeSequenceSettings.dwellsBeforeProbe}
+                updateDwellsBeforeProbe={updateDwellsBeforeProbe}
                 addProbeOperation={addProbeOperation}
                 updateProbeOperation={updateProbeOperation}
                 deleteProbeOperation={deleteProbeOperation}

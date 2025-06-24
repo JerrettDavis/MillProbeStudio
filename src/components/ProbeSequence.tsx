@@ -11,6 +11,10 @@ import type { ProbeOperation, MovementStep } from '@/types/machine';
 
 interface ProbeSequenceProps {
     probeSequence: ProbeOperation[];
+    initialPosition: { X: number; Y: number; Z: number };
+    updateInitialPosition: (axis: 'X' | 'Y' | 'Z', value: number) => void;
+    dwellsBeforeProbe: number;
+    updateDwellsBeforeProbe: (value: number) => void;
     addProbeOperation: () => void;
     updateProbeOperation: (id: string, field: keyof ProbeOperation, value: any) => void;
     deleteProbeOperation: (id: string) => void;
@@ -28,6 +32,10 @@ interface ProbeSequenceProps {
 
 const ProbeSequenceEditor: React.FC<ProbeSequenceProps> = ({
     probeSequence,
+    initialPosition,
+    updateInitialPosition,
+    dwellsBeforeProbe,
+    updateDwellsBeforeProbe,
     addProbeOperation,
     updateProbeOperation,
     deleteProbeOperation,
@@ -36,7 +44,7 @@ const ProbeSequenceEditor: React.FC<ProbeSequenceProps> = ({
     deleteMovementStep,
     machineSettingsUnits,
     machineAxes
-}) => {    // Helper component for axis inputs to reduce duplication
+}) => {// Helper component for axis inputs to reduce duplication
     const AxisInputs: React.FC<{
         move: MovementStep;
         probe: ProbeOperation;
@@ -280,9 +288,52 @@ const ProbeSequenceEditor: React.FC<ProbeSequenceProps> = ({
                 <CardDescription>Define the sequence of probing operations</CardDescription>
                 <Button onClick={addProbeOperation} className="w-fit">
                     Add Probe Operation
-                </Button>
-            </CardHeader>
+                </Button>            </CardHeader>
             <CardContent className="space-y-4">
+                {/* Initial Position Settings */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Initial Probe Position</CardTitle>
+                        <CardDescription>Set the starting position for the probe sequence in machine coordinates</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="grid grid-cols-3 gap-4">
+                            {Object.entries(initialPosition).map(([axis, value]) => (
+                                <div key={axis}>
+                                    <Label>{axis} Position ({machineSettingsUnits})</Label>
+                                    <Input
+                                        type="number"
+                                        step="0.1"
+                                        value={value}
+                                        onChange={(e) => updateInitialPosition(axis as 'X' | 'Y' | 'Z', parseFloat(e.target.value))}
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Dwells Before Probe Settings */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Buffer Clear Settings</CardTitle>
+                        <CardDescription>Configure the number of buffer clear dwells before each probe operation</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="w-40">
+                            <Label>Dwells Before Probe</Label>
+                            <Input
+                                type="number"
+                                step="1"
+                                min="0"
+                                value={dwellsBeforeProbe}
+                                onChange={(e) => updateDwellsBeforeProbe(parseInt(e.target.value))}
+                            />
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Probe Operations */}
                 {probeSequence.map((probe, index) => (
                     <Card key={probe.id}>
                         <CardHeader>

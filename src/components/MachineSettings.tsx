@@ -126,8 +126,7 @@ const MachineSettingsForm: React.FC<MachineSettingsProps> = ({ machineSettings, 
                 />
               </div>
               <div>
-                <Label>Max Value ({machineSettings.units})</Label>
-                <Input
+                <Label>Max Value ({machineSettings.units})</Label>                <Input
                   type="number"
                   step="0.1"
                   value={config.max}
@@ -138,32 +137,6 @@ const MachineSettingsForm: React.FC<MachineSettingsProps> = ({ machineSettings, 
           </CardContent>
         </Card>
       ))}
-      <Card>
-        <CardHeader>
-          <CardTitle>Initial Probe Position</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-3 gap-4">
-            {Object.entries(machineSettings.initialPosition).map(([axis, value]) => (
-              <div key={axis}>
-                <Label>{axis} Position ({machineSettings.units})</Label>
-                <Input
-                  type="number"
-                  step="0.1"
-                  value={value}
-                  onChange={(e) => setMachineSettings(prev => ({
-                    ...prev,
-                    initialPosition: {
-                      ...prev.initialPosition,
-                      [axis]: parseFloat(e.target.value)
-                    }
-                  }))}
-                />
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
     </CardContent>
   </Card>
 );

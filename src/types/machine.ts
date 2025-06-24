@@ -16,12 +16,17 @@ export interface MachineSettings {
     Y: AxisConfig;
     Z: AxisConfig;
   };
+  spindleSpeed: number;
+}
+
+export interface ProbeSequenceSettings {
   initialPosition: {
     X: number;
     Y: number;
     Z: number;
   };
-  spindleSpeed: number;
+  dwellsBeforeProbe: number;
+  operations: ProbeOperation[];
 }
 
 export interface ProbeOperation {

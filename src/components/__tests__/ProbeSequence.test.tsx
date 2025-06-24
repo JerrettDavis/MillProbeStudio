@@ -29,11 +29,13 @@ describe('ProbeSequenceEditor WCS Offset Input', () => {  const baseProbe = {
       const updateProbeOperation = (id: string, field: string, value: any) => {
         updateProbeOperationMock(id, field, value);
         setProbeSequence(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
-      };
-
-      return (
+      };      return (
         <ProbeSequenceEditor
           probeSequence={probeSequence}
+          initialPosition={{ X: -78, Y: -100, Z: -41 }}
+          updateInitialPosition={vi.fn()}
+          dwellsBeforeProbe={15}
+          updateDwellsBeforeProbe={vi.fn()}
           addProbeOperation={vi.fn()}
           updateProbeOperation={updateProbeOperation}
           deleteProbeOperation={vi.fn()}
@@ -96,9 +98,12 @@ describe('ProbeSequenceEditor WCS Offset Input', () => {  const baseProbe = {
             }}
           >
             Change Tool Size
-          </button>
-          <ProbeSequenceEditor
+          </button>          <ProbeSequenceEditor
             probeSequence={problematicProbeSequence} // This simulates the bug
+            initialPosition={{ X: -78, Y: -100, Z: -41 }}
+            updateInitialPosition={vi.fn()}
+            dwellsBeforeProbe={15}
+            updateDwellsBeforeProbe={vi.fn()}
             addProbeOperation={vi.fn()}
             updateProbeOperation={updateProbeOperation}
             deleteProbeOperation={vi.fn()}
@@ -158,9 +163,12 @@ describe('ProbeSequenceEditor WCS Offset Input', () => {  const baseProbe = {
             onClick={() => setToolSize(2.0)}
           >
             Change Tool Size
-          </button>
-          <ProbeSequenceEditor
+          </button>          <ProbeSequenceEditor
             probeSequence={probeSequence} // Correct: pass actual sequence without override
+            initialPosition={{ X: -78, Y: -100, Z: -41 }}
+            updateInitialPosition={vi.fn()}
+            dwellsBeforeProbe={15}
+            updateDwellsBeforeProbe={vi.fn()}
             addProbeOperation={vi.fn()}
             updateProbeOperation={updateProbeOperation}
             deleteProbeOperation={vi.fn()}
@@ -214,10 +222,13 @@ describe('ProbeSequenceEditor WCS Offset Input', () => {  const baseProbe = {
         setProbeSequence(prev => prev.map(p => p.id === id ? { ...p, [field]: value } : p));
       };
 
-      return (
-        <ProbeSequenceEditor
+      return (        <ProbeSequenceEditor
           // This was the actual problematic line from App.tsx before the fix:
           probeSequence={probeSequence.map(probe => ({ ...probe, wcsOffset: endmillSize / 2 }))}
+          initialPosition={{ X: -78, Y: -100, Z: -41 }}
+          updateInitialPosition={vi.fn()}
+          dwellsBeforeProbe={15}
+          updateDwellsBeforeProbe={vi.fn()}
           addProbeOperation={vi.fn()}
           updateProbeOperation={updateProbeOperation}
           deleteProbeOperation={vi.fn()}

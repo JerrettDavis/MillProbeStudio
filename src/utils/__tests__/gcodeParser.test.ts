@@ -33,6 +33,7 @@ G4 P0.01                                (Empty Buffer)
 G4 P0.01                                (Empty Buffer)
 G4 P0.01                                (Empty Buffer)
 G4 P0.01                                (Empty Buffer)
+G4 P0.01                                (Empty Buffer)
 
 G38.2 Y-10 F10                          (Probe along Y- axis)
 G10 L20 P1 Y1.5875                      (Set WCS G54 Y origin)
@@ -58,6 +59,7 @@ G4 P0.01                                (Empty Buffer)
 G4 P0.01                                (Empty Buffer)
 G4 P0.01                                (Empty Buffer)
 G4 P0.01                                (Empty Buffer)
+G4 P0.01                                (Empty Buffer)
 
 G38.2 X-10 F10                          (Probe along X- axis)
 G10 L20 P1 X1.5875                      (Set WCS G54 X origin)
@@ -68,6 +70,7 @@ G0 G53 Z-24                             (move z to safe probing height in machin
 G0 G90 G54 X-5.5 Y-4                    (move to center of stock for z probing)
 
 (=== Probe Operation 3: Z Axis ===)
+G4 P0.01                                (Empty Buffer)
 G4 P0.01                                (Empty Buffer)
 G4 P0.01                                (Empty Buffer)
 G4 P0.01                                (Empty Buffer)
@@ -544,6 +547,43 @@ G0 Y-5`;
       expect(probe2.backoffDistance).toBe(2.0);
       expect(probe2.postMoves).toHaveLength(1); // G0 Y-5 (automatic G0 G91 X2.0 excluded)
       expect(probe2.postMoves[0].axesValues).toEqual({ Y: -5 });
+    });
+
+    it('should parse initial positioning and dwells before probe', () => {
+      const gcode = `G21
+G90 G53 G0 Z-41
+G90 G53 G0 Y-100
+G90 G53 G0 X-78
+
+S5000 M4
+G4 P3
+
+G91
+
+G4 P0.01
+G4 P0.01
+G4 P0.01
+G4 P0.01
+G4 P0.01
+
+G38.2 Y-10 F10
+G10 L20 P1 Y1.5`;
+
+      const result = parseGCode(gcode);
+
+      // Should parse initial position correctly
+      expect(result.initialPosition).toEqual({
+        X: -78,
+        Y: -100,
+        Z: -41
+      });
+
+      // Should count dwells before probe
+      expect(result.dwellsBeforeProbe).toBe(5);
+      
+      // Should have 1 probe operation
+      expect(result.probeSequence).toHaveLength(1);
+      expect(result.probeSequence[0].axis).toBe('Y');
     });
   });
 });
