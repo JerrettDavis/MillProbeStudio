@@ -1,7 +1,6 @@
 // src/types/machine.ts
 
 export interface AxisConfig {
-  label: string;
   positiveDirection: string;
   negativeDirection: string;
   polarity: 1 | -1;
@@ -16,7 +15,6 @@ export interface MachineSettings {
     Y: AxisConfig;
     Z: AxisConfig;
   };
-  spindleSpeed: number;
 }
 
 export interface ProbeSequenceSettings {
@@ -26,6 +24,13 @@ export interface ProbeSequenceSettings {
     Z: number;
   };
   dwellsBeforeProbe: number;
+  spindleSpeed: number;
+  units: 'mm' | 'inch';
+  endmillSize: {
+    input: string;
+    unit: 'fraction' | 'inch' | 'mm';
+    sizeInMM: number;
+  };
   operations: ProbeOperation[];
 }
 

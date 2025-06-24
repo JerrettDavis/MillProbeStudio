@@ -87,7 +87,20 @@ const extractFeedRate = (line: string): number | null =>
   extractValue(line, /F(\d*\.?\d+)/);
 
 const extractSpindleSpeed = (line: string): number | null => 
-  line.includes('M4') ? extractValue(line, /S(\d+)/) : null;// Buffer clear detection using functional approach
+  (line.includes('M3') || line.includes('M4')) ? extractValue(line, /S(\d+)/) : null;
+
+// Function to extract comment from a G-code line
+const extractComment = (line: string): string | null => {
+  const commentMatch = line.match(/\((.+)\)/);
+  return commentMatch ? commentMatch[1].trim() : null;
+};
+
+// Function to create description from comment or fallback to default
+const createDescription = (comment: string | null, fallback: string): string => {
+  return comment || fallback;
+};
+
+// Buffer clear detection using functional approach
 const findBufferClearRanges = (lines: string[]): Array<{ start: number; end: number }> => {
   const validLines = lines
     .map((line, index) => ({ line: line.trim(), index }))
@@ -138,7 +151,7 @@ const createBufferClearSets = (lines: string[]) => {
 const getCommandType = (line: string): string => {
   const commands = [
     { pattern: /G20|G21/, type: 'units' },
-    { pattern: /S\d+.*M4/, type: 'spindle' },
+    { pattern: /(S\d+.*(M3|M4))|(M3.*S\d+)|(M4.*S\d+)/, type: 'spindle' },
     { pattern: /G38\.2/, type: 'probe' },
     { pattern: /G10.*L20.*P1/, type: 'wcs' },
     { pattern: /G0(?!.*G10)/, type: 'rapid' },
@@ -150,11 +163,11 @@ const getCommandType = (line: string): string => {
 
 // Command processors as a lookup table
 const commandProcessors = {
-  units: (line: string, state: ParserState) => {
+  units: (line: string, state: ParserState, ..._args: any[]) => {
     state.units = line.includes('G20') ? 'inch' : 'mm';
   },
   
-  spindle: (line: string, state: ParserState) => {
+  spindle: (line: string, state: ParserState, ..._args: any[]) => {
     const speed = extractSpindleSpeed(line);
     if (speed !== null) state.spindleSpeed = speed;
   },
@@ -185,7 +198,7 @@ const commandProcessors = {
     state.pendingMoves = [];
   },
   
-  wcs: (line: string, state: ParserState) => {
+  wcs: (line: string, state: ParserState, ..._args: any[]) => {
     if (!state.currentProbe) return;
     
     const axes = parseAxes(line);
@@ -195,8 +208,7 @@ const commandProcessors = {
       state.currentProbe.wcsOffset = Math.abs(axisValue);
       state.expectingBackoffMove = true;
     }
-  },
-    rapid: (line: string, state: ParserState) => {
+  },rapid: (line: string, state: ParserState, _lineIndex: number, originalLine: string) => {
     const axes = parseAxes(line);
     if (Object.keys(axes).length === 0) return;
 
@@ -226,10 +238,15 @@ const commandProcessors = {
       return;
     }
 
+    // Extract comment from original line and create description
+    const comment = extractComment(originalLine);
+    const defaultDescription = `Rapid move to ${Object.entries(axes).map(([axis, value]) => `${axis}${value}`).join(' ')}`;
+    const description = createDescription(comment, defaultDescription);
+
     const move: MovementStep = {
       id: generateId('step'),
       type: 'rapid',
-      description: `Rapid move to ${Object.entries(axes).map(([axis, value]) => `${axis}${value}`).join(' ')}`,
+      description,
       axesValues: axes,
       positionMode: getPositionMode(line),
       coordinateSystem: getCoordinateSystem(line)
@@ -238,15 +255,19 @@ const commandProcessors = {
     state.pendingMoves.push(move);
     state.expectingBackoffMove = false;
   },
-  
-  dwell: (line: string, state: ParserState) => {
+    dwell: (line: string, state: ParserState, _lineIndex: number, originalLine: string) => {
     const dwellTime = extractDwellTime(line);
     if (dwellTime === null) return;
+
+    // Extract comment from original line and create description
+    const comment = extractComment(originalLine);
+    const defaultDescription = `Dwell for ${dwellTime} seconds`;
+    const description = createDescription(comment, defaultDescription);
 
     const move: MovementStep = {
       id: generateId('step'),
       type: 'dwell',
-      description: `Dwell for ${dwellTime} seconds`,
+      description,
       dwellTime
     };
 

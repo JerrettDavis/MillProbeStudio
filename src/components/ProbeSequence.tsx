@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -7,44 +7,193 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import type { ProbeOperation, MovementStep } from '@/types/machine';
+import type { ProbeOperation, MovementStep, ProbeSequenceSettings } from '@/types/machine';
 
 interface ProbeSequenceProps {
-    probeSequence: ProbeOperation[];
-    initialPosition: { X: number; Y: number; Z: number };
-    updateInitialPosition: (axis: 'X' | 'Y' | 'Z', value: number) => void;
-    dwellsBeforeProbe: number;
-    updateDwellsBeforeProbe: (value: number) => void;
-    addProbeOperation: () => void;
-    updateProbeOperation: (id: string, field: keyof ProbeOperation, value: any) => void;
-    deleteProbeOperation: (id: string) => void;
-    addMovementStep: (probeId: string, moveType?: 'pre' | 'post') => void;
-    updateMovementStep: (probeId: string, stepId: string, field: keyof MovementStep, value: any, moveType?: 'pre' | 'post') => void;
-    deleteMovementStep: (probeId: string, stepId: string, moveType?: 'pre' | 'post') => void;
+    // Data passed in
+    initialData?: {
+        probeSequence: ProbeOperation[];
+        probeSequenceSettings: ProbeSequenceSettings;
+    };
+    
+    // Configuration from machine settings
     machineSettingsUnits: string;
     machineAxes: {
         X: { positiveDirection: string; negativeDirection: string };
         Y: { positiveDirection: string; negativeDirection: string };
         Z: { positiveDirection: string; negativeDirection: string };
     };
-    defaultWcsOffset: number;
+    
+    // Callbacks to notify parent of changes
+    onProbeSequenceChange?: (probeSequence: ProbeOperation[]) => void;
+    onProbeSequenceSettingsChange?: (settings: ProbeSequenceSettings) => void;
 }
 
 const ProbeSequenceEditor: React.FC<ProbeSequenceProps> = ({
-    probeSequence,
-    initialPosition,
-    updateInitialPosition,
-    dwellsBeforeProbe,
-    updateDwellsBeforeProbe,
-    addProbeOperation,
-    updateProbeOperation,
-    deleteProbeOperation,
-    addMovementStep,
-    updateMovementStep,
-    deleteMovementStep,
+    initialData,
     machineSettingsUnits,
-    machineAxes
-}) => {// Helper component for axis inputs to reduce duplication
+    machineAxes,
+    onProbeSequenceChange,
+    onProbeSequenceSettingsChange
+}) => {
+    // Internal state management
+    const [probeSequence, setProbeSequence] = useState<ProbeOperation[]>(
+        initialData?.probeSequence || []
+    );
+    
+    const [probeSequenceSettings, setProbeSequenceSettings] = useState<ProbeSequenceSettings>(
+        initialData?.probeSequenceSettings || {
+            initialPosition: { X: -78, Y: -100, Z: -41 },
+            dwellsBeforeProbe: 15,
+            spindleSpeed: 5000,
+            units: 'mm',
+            endmillSize: {
+                input: '1/8',
+                unit: 'fraction',
+                sizeInMM: 3.175
+            },
+            operations: []
+        }
+    );    // Sync units from machine settings
+    useEffect(() => {
+        setProbeSequenceSettings(prev => ({
+            ...prev,
+            units: machineSettingsUnits as 'mm' | 'inch'
+        }));
+    }, [machineSettingsUnits]);
+
+    // Note: We don't automatically update WCS Offset when endmill size changes
+    // to preserve user's custom values. WCS Offset should only be auto-set for new probes.    // Notify parent of changes
+    useEffect(() => {
+        onProbeSequenceChange?.(probeSequence);
+    }, [probeSequence, onProbeSequenceChange]);
+
+    useEffect(() => {
+        onProbeSequenceSettingsChange?.(probeSequenceSettings);
+    }, [probeSequenceSettings, onProbeSequenceSettingsChange]);
+
+    // Helper to parse tool size input
+    const parseToolSize = (input: string, unit: 'fraction' | 'inch' | 'mm'): number => {
+        if (unit === 'mm') {
+            return parseFloat(input);
+        } else if (unit === 'inch') {
+            return parseFloat(input) * 25.4;
+        } else if (unit === 'fraction') {
+            // e.g. "1/8"
+            const [num, denom] = input.split('/').map(Number);
+            if (!isNaN(num) && !isNaN(denom) && denom !== 0) {
+                return (num / denom) * 25.4;
+            }
+            return 0;
+        }
+        return 0;
+    };
+
+    // Internal methods for state management
+    const updateInitialPosition = (axis: 'X' | 'Y' | 'Z', value: number) => {
+        setProbeSequenceSettings(prev => ({
+            ...prev,
+            initialPosition: {
+                ...prev.initialPosition,
+                [axis]: value
+            }
+        }));
+    };
+
+    const updateDwellsBeforeProbe = (value: number) => {
+        setProbeSequenceSettings(prev => ({
+            ...prev,
+            dwellsBeforeProbe: value
+        }));
+    };
+
+    const updateSpindleSpeed = (speed: number) => {
+        setProbeSequenceSettings(prev => ({
+            ...prev,
+            spindleSpeed: speed
+        }));
+    };
+
+    const updateEndmillSize = (input?: string, unit?: 'fraction' | 'inch' | 'mm') => {
+        const newInput = input !== undefined ? input : probeSequenceSettings.endmillSize.input;
+        const newUnit = unit !== undefined ? unit : probeSequenceSettings.endmillSize.unit;
+        const sizeInMM = parseToolSize(newInput, newUnit);
+        
+        setProbeSequenceSettings(prev => ({
+            ...prev,
+            endmillSize: {
+                input: newInput,
+                unit: newUnit,
+                sizeInMM
+            }
+        }));
+    };
+
+    const addProbeOperation = () => {
+        const newProbe: ProbeOperation = {
+            id: `probe-${Date.now()}`,
+            axis: 'Y',
+            direction: -1,
+            distance: 25,
+            feedRate: 10,
+            backoffDistance: 1,
+            wcsOffset: probeSequenceSettings.endmillSize.sizeInMM / 2,
+            preMoves: [],
+            postMoves: []
+        };
+        setProbeSequence(prev => [...prev, newProbe]);
+    };
+
+    const updateProbeOperation = (id: string, field: keyof ProbeOperation, value: any) => {
+        setProbeSequence(prev => prev.map(probe =>
+            probe.id === id ? { ...probe, [field]: value } : probe
+        ));
+    };
+
+    const deleteProbeOperation = (id: string) => {
+        setProbeSequence(prev => prev.filter(probe => probe.id !== id));
+    };
+
+    const addMovementStep = (probeId: string, moveType: 'pre' | 'post' = 'post') => {
+        const newStep: MovementStep = {
+            id: `step-${Date.now()}`,
+            type: 'rapid',
+            description: moveType === 'pre' ? 'Position for probe' : 'Move away from surface',
+            axesValues: {},
+            positionMode: 'relative',
+            coordinateSystem: 'none'
+        };
+
+        setProbeSequence(prev => prev.map(probe =>
+            probe.id === probeId ? {
+                ...probe,
+                [moveType === 'pre' ? 'preMoves' : 'postMoves']: [
+                    ...(moveType === 'pre' ? probe.preMoves : probe.postMoves), 
+                    newStep
+                ]
+            } : probe
+        ));
+    };
+
+    const updateMovementStep = (probeId: string, stepId: string, field: keyof MovementStep, value: any, moveType: 'pre' | 'post' = 'post') => {
+        setProbeSequence(prev => prev.map(probe =>
+            probe.id === probeId ? {
+                ...probe,
+                [moveType === 'pre' ? 'preMoves' : 'postMoves']: (moveType === 'pre' ? probe.preMoves : probe.postMoves).map(step =>
+                    step.id === stepId ? { ...step, [field]: value } : step
+                )
+            } : probe
+        ));
+    };
+
+    const deleteMovementStep = (probeId: string, stepId: string, moveType: 'pre' | 'post' = 'post') => {
+        setProbeSequence(prev => prev.map(probe =>
+            probe.id === probeId ? {
+                ...probe,
+                [moveType === 'pre' ? 'preMoves' : 'postMoves']: (moveType === 'pre' ? probe.preMoves : probe.postMoves).filter(step => step.id !== stepId)
+            } : probe
+        ));
+    };// Helper component for axis inputs to reduce duplication
     const AxisInputs: React.FC<{
         move: MovementStep;
         probe: ProbeOperation;
@@ -296,9 +445,8 @@ const ProbeSequenceEditor: React.FC<ProbeSequenceProps> = ({
                         <CardTitle>Initial Probe Position</CardTitle>
                         <CardDescription>Set the starting position for the probe sequence in machine coordinates</CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <div className="grid grid-cols-3 gap-4">
-                            {Object.entries(initialPosition).map(([axis, value]) => (
+                    <CardContent>                        <div className="grid grid-cols-3 gap-4">
+                            {Object.entries(probeSequenceSettings.initialPosition).map(([axis, value]) => (
                                 <div key={axis}>
                                     <Label>{axis} Position ({machineSettingsUnits})</Label>
                                     <Input
@@ -311,27 +459,74 @@ const ProbeSequenceEditor: React.FC<ProbeSequenceProps> = ({
                             ))}
                         </div>
                     </CardContent>
-                </Card>
+                </Card>                {/* Buffer Clear, Spindle, and Endmill Settings Row */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    {/* Dwells Before Probe Settings */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Buffer Clear Settings</CardTitle>
+                            <CardDescription>Configure the number of buffer clear dwells before each probe operation</CardDescription>
+                        </CardHeader>
+                        <CardContent>                            <div>
+                                <Label>Dwells Before Probe</Label>
+                                <Input
+                                    type="number"
+                                    step="1"
+                                    min="0"
+                                    value={probeSequenceSettings.dwellsBeforeProbe}
+                                    onChange={(e) => updateDwellsBeforeProbe(parseInt(e.target.value))}
+                                />
+                            </div>
+                        </CardContent>
+                    </Card>
 
-                {/* Dwells Before Probe Settings */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Buffer Clear Settings</CardTitle>
-                        <CardDescription>Configure the number of buffer clear dwells before each probe operation</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="w-40">
-                            <Label>Dwells Before Probe</Label>
-                            <Input
-                                type="number"
-                                step="1"
-                                min="0"
-                                value={dwellsBeforeProbe}
-                                onChange={(e) => updateDwellsBeforeProbe(parseInt(e.target.value))}
-                            />
-                        </div>
-                    </CardContent>
-                </Card>
+                    {/* Spindle Speed Settings */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Spindle Settings</CardTitle>
+                            <CardDescription>Configure spindle speed for this probe sequence</CardDescription>
+                        </CardHeader>
+                        <CardContent>                            <div>
+                                <Label>Spindle Speed (RPM)</Label>
+                                <Input
+                                    type="number"
+                                    value={probeSequenceSettings.spindleSpeed}
+                                    onChange={(e) => updateSpindleSpeed(parseInt(e.target.value))}
+                                />
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Endmill Size Settings */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Endmill Settings</CardTitle>
+                            <CardDescription>Configure endmill size for this probe sequence (affects WCS offset calculation)</CardDescription>
+                        </CardHeader>                        <CardContent>
+                            <div>
+                                <Label>Endmill Size</Label>
+                                <div className="flex gap-2 items-center">
+                                    <Input
+                                        value={probeSequenceSettings.endmillSize.input}
+                                        onChange={e => updateEndmillSize(e.target.value)}
+                                        className="w-32"
+                                    />
+                                    <Select value={probeSequenceSettings.endmillSize.unit} onValueChange={v => updateEndmillSize(undefined, v as 'fraction' | 'inch' | 'mm')}>
+                                        <SelectTrigger className="w-28">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="fraction">Fractional Inch</SelectItem>
+                                            <SelectItem value="inch">Decimal Inch</SelectItem>
+                                            <SelectItem value="mm">Millimeter</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <span className="text-gray-500 text-sm mt-1 block">(WCS Offset auto: {(probeSequenceSettings.endmillSize.sizeInMM/2).toFixed(4)} mm)</span>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
 
                 {/* Probe Operations */}
                 {probeSequence.map((probe, index) => (

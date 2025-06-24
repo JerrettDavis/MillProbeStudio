@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { parseGCode, type ParsedGCodeResult } from '@/utils/gcodeParser';
-import type { ProbeOperation, MachineSettings } from '@/types/machine';
+import type { MachineSettings } from '@/types/machine';
 
 interface GCodeImportProps {
   onImport: (parseResult: ParsedGCodeResult) => void;

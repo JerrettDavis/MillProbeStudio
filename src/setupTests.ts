@@ -1,5 +1,40 @@
 import '@testing-library/jest-dom';
+import { vi } from 'vitest';
 
-// setupTests.ts
-// You can add global mocks or test setup here if needed.
-// For now, this file is required for Vitest config but can be left empty.
+// Mock window.matchMedia for tests
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  value: vi.fn().mockImplementation((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(), // deprecated
+    removeListener: vi.fn(), // deprecated
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })),
+});
+
+// Mock ResizeObserver
+global.ResizeObserver = vi.fn().mockImplementation(() => ({
+  observe: vi.fn(),
+  unobserve: vi.fn(),
+  disconnect: vi.fn(),
+}));
+
+// Mock navigator.clipboard
+const mockWriteText = vi.fn();
+Object.defineProperty(navigator, 'clipboard', {
+  value: {
+    writeText: mockWriteText,
+    readText: vi.fn(),
+    read: vi.fn(),
+    write: vi.fn()
+  },
+  writable: true,
+  configurable: true
+});
+
+// Export the mock for use in tests
+(global as any).mockClipboardWriteText = mockWriteText;

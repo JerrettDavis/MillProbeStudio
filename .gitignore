@@ -26,3 +26,7 @@ dist-ssr
 # Debug files
 debug-*.js
 debug-*.ts
+
+# Test coverage
+coverage/
+*.lcov

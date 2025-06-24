@@ -1,0 +1,95 @@
+# Example GitHub Actions workflow for test coverage
+# Create this file at: .github/workflows/test-coverage.yml
+
+name: Test Coverage
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-coverage:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run tests with coverage
+      run: npm run test:coverage
+
+    - name: Check coverage thresholds
+      run: |
+        # Extract coverage percentages from JSON report
+        LINES=$(cat coverage/coverage-final.json | jq '.total.lines.pct')
+        FUNCTIONS=$(cat coverage/coverage-final.json | jq '.total.functions.pct')
+        BRANCHES=$(cat coverage/coverage-final.json | jq '.total.branches.pct')
+        STATEMENTS=$(cat coverage/coverage-final.json | jq '.total.statements.pct')
+        
+        echo "Coverage Report:"
+        echo "Lines: $LINES%"
+        echo "Functions: $FUNCTIONS%"
+        echo "Branches: $BRANCHES%"
+        echo "Statements: $STATEMENTS%"
+        
+        # Check if coverage meets minimum thresholds (80%)
+        if (( $(echo "$LINES >= 80" | bc -l) )); then
+          echo "✅ Lines coverage meets threshold"
+        else
+          echo "❌ Lines coverage below 80% threshold"
+          exit 1
+        fi
+        
+        if (( $(echo "$FUNCTIONS >= 80" | bc -l) )); then
+          echo "✅ Functions coverage meets threshold"
+        else
+          echo "❌ Functions coverage below 80% threshold"
+          exit 1
+        fi
+
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./coverage/coverage-final.json
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: true
+      env:
+        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+    - name: Comment PR with coverage
+      if: github.event_name == 'pull_request'
+      uses: marocchino/sticky-pull-request-comment@v2
+      with:
+        recreate: true
+        message: |
+          ## 📊 Coverage Report
+          
+          | Type | Coverage |
+          |------|----------|
+          | Lines | ${{ env.LINES_COV }}% |
+          | Functions | ${{ env.FUNCTIONS_COV }}% |
+          | Branches | ${{ env.BRANCHES_COV }}% |
+          | Statements | ${{ env.STATEMENTS_COV }}% |
+          
+          [View detailed coverage report](https://app.codecov.io/github/${{ github.repository }}/commit/${{ github.sha }})
+
+    - name: Archive coverage artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: |
+          coverage/
+          !coverage/tmp/
+        retention-days: 30

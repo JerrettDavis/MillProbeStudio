@@ -10,21 +10,15 @@ interface MachineSettingsProps {
   machineSettings: MachineSettings;
   setMachineSettings: React.Dispatch<React.SetStateAction<MachineSettings>>;
   updateAxisConfig: (axis: 'X' | 'Y' | 'Z', field: keyof AxisConfig, value: any) => void;
-  toolSizeInput: string;
-  setToolSizeInput: (v: string) => void;
-  toolSizeUnit: 'fraction' | 'inch' | 'mm';
-  setToolSizeUnit: (v: 'fraction' | 'inch' | 'mm') => void;
-  toolSizeMM: number;
 }
 
-const MachineSettingsForm: React.FC<MachineSettingsProps> = ({ machineSettings, setMachineSettings, updateAxisConfig, toolSizeInput, setToolSizeInput, toolSizeUnit, setToolSizeUnit, toolSizeMM }) => (
+const MachineSettingsForm: React.FC<MachineSettingsProps> = ({ machineSettings, setMachineSettings, updateAxisConfig }) => (
   <Card>
     <CardHeader>
       <CardTitle>Machine Configuration</CardTitle>
       <CardDescription>Configure your mill's axis assignments, directions, and limits</CardDescription>
     </CardHeader>
-    <CardContent className="space-y-6">
-      <div className="grid grid-cols-2 gap-4">
+    <CardContent className="space-y-6">      <div className="grid grid-cols-1 gap-4">
         <div>
           <Label htmlFor="units">Units</Label>
           <Select value={machineSettings.units} onValueChange={(value: 'mm' | 'inch') =>
@@ -37,35 +31,6 @@ const MachineSettingsForm: React.FC<MachineSettingsProps> = ({ machineSettings, 
               <SelectItem value="inch">Inches (in)</SelectItem>
             </SelectContent>
           </Select>
-        </div>
-        <div>
-          <Label htmlFor="spindle">Spindle Speed (RPM)</Label>
-          <Input
-            type="number"
-            value={machineSettings.spindleSpeed}
-            onChange={(e) => setMachineSettings(prev => ({ ...prev, spindleSpeed: parseInt(e.target.value) }))}
-          />
-        </div>
-        <div className="col-span-2">
-          <Label>Endmill Size</Label>
-          <div className="flex gap-2 items-center">
-            <Input
-              value={toolSizeInput}
-              onChange={e => setToolSizeInput(e.target.value)}
-              className="w-32"
-            />
-            <Select value={toolSizeUnit} onValueChange={v => setToolSizeUnit(v as 'fraction' | 'inch' | 'mm')}>
-              <SelectTrigger className="w-28">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="fraction">Fractional Inch</SelectItem>
-                <SelectItem value="inch">Decimal Inch</SelectItem>
-                <SelectItem value="mm">Millimeter</SelectItem>
-              </SelectContent>
-            </Select>
-            <span className="text-gray-500 text-sm">(WCS Offset auto: {(toolSizeMM/2).toFixed(4)} mm)</span>
-          </div>
         </div>
       </div>
       <Separator />
