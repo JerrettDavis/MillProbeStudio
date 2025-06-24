@@ -1,0 +1,48 @@
+; Test G-code for buffer clear block detection
+G21 ; Set units to millimeters
+G90 ; Absolute positioning
+M4 S10000 ; Start spindle
+
+; Some moves before first buffer clear (should be ignored)
+G0 X10 Y10
+G0 Z5
+G1 X20 F100
+
+; First buffer clear block
+G4 P0.01
+G4 P0.01
+G4 P0.01
+
+; Pre-moves for first probe
+G0 X0 Y0
+G0 Z2
+G91 ; Switch to relative
+
+; First probe operation
+G38.2 Z-10 F5
+
+; Post-moves for first probe
+G0 Z2
+G90 ; Switch back to absolute
+G10 L20 P1 Z25.5
+
+; Second buffer clear block
+G4 P0.01
+G4 P0.01
+
+; Pre-moves for second probe
+G0 X50 Y50
+G0 Z2
+G91
+
+; Second probe operation
+G38.2 X-15 F8
+
+; Post-moves for second probe
+G0 X5
+G0 Z5
+G90
+G10 L20 P1 X35.2
+
+; Final move
+G0 Z50
