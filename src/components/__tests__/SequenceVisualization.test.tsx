@@ -84,26 +84,30 @@ describe('SequenceVisualization Component', () => {
     expect(screen.getByTestId('mock-3d-visualization')).toBeInTheDocument();
   });
 
-  it('renders tabs for controls and sequence details', () => {
+  it('renders drawer buttons for controls and sequence details', () => {
     render(<SequenceVisualization probeSequence={mockProbeSequence} machineSettings={mockMachineSettings} />);
 
-    expect(screen.getByRole('tab', { name: 'Stock Controls' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Sequence Details' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Stock Controls/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Probe Position/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Sequence Details/ })).toBeInTheDocument();
   });
 
-  it('displays stock controls by default', () => {
+  it('opens stock controls drawer when button is clicked', async () => {
+    const user = userEvent.setup();
     render(<SequenceVisualization probeSequence={[]} machineSettings={mockMachineSettings} />);
 
-    // Should show stock controls tab is selected
-    expect(screen.getByRole('tab', { name: 'Stock Controls' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByText('Adjust the size and position of the stock/workpiece')).toBeInTheDocument();
+    // Click the Stock Controls button
+    await user.click(screen.getByRole('button', { name: /Stock Controls/ }));
+    
+    // Should show stock controls drawer content - look for drawer-specific content
+    expect(screen.getByRole('heading', { name: /Stock Controls/ })).toBeInTheDocument();
   });
-  it('displays probe operations details', async () => {
+  it('displays probe operations details when drawer is opened', async () => {
     const user = userEvent.setup();
     render(<SequenceVisualization probeSequence={mockProbeSequence} machineSettings={mockMachineSettings} />);
     
-    // Click on the "Sequence Details" tab
-    await user.click(screen.getByText('Sequence Details'));
+    // Click on the "Sequence Details" button to open drawer
+    await user.click(screen.getByRole('button', { name: /Sequence Details/ }));
     
     // Check for probe 1 details
     expect(screen.getByText('Probe Z axis negative direction')).toBeInTheDocument();
@@ -260,15 +264,15 @@ describe('SequenceVisualization Component', () => {
     expect(screen.getByText('Probe X axis positive direction')).toBeInTheDocument();
     expect(screen.getByText('Probe X axis negative direction')).toBeInTheDocument();
   });
-  it('renders the main structure with 3D visualization and tabs', () => {
+  it('renders the main structure with 3D visualization and drawer buttons', () => {
     render(<SequenceVisualization probeSequence={mockProbeSequence} machineSettings={mockMachineSettings} />);
     
     // Check that the 3D visualization card is present
     expect(screen.getByText('3D Visualization')).toBeInTheDocument();
     expect(screen.getByText('Interactive 3D view of your machine, stock, and probe sequence')).toBeInTheDocument();
     
-    // Check that the tabs are present by role
-    expect(screen.getByRole('tab', { name: 'Stock Controls' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Sequence Details' })).toBeInTheDocument();
+    // Check that the drawer buttons are present
+    expect(screen.getByRole('button', { name: /Stock Controls/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Sequence Details/ })).toBeInTheDocument();
   });
 });
