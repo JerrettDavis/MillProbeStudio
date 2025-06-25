@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## <small>1.0.1 (2025-06-25)</small>
+
+* fix: configure correct base path for GitHub Pages deployment ([27ceca6](https://github.com/JerrettDavis/MillProbeStudio/commit/27ceca6))
+* Merge branch 'main' of https://github.com/JerrettDavis/MillProbeStudio ([cb8b7ea](https://github.com/JerrettDavis/MillProbeStudio/commit/cb8b7ea))
+* ci: add codecov configuration file ([119d324](https://github.com/JerrettDavis/MillProbeStudio/commit/119d324))
+
 ## 1.0.0 (2025-06-25)
 
 * fix: resolve all ESLint errors and warnings ([2868945](https://github.com/JerrettDavis/MillProbeStudio/commit/2868945))
