@@ -100,15 +100,15 @@ describe('SequenceVisualization Component', () => {
   it('renders tabs for controls and sequence details', () => {
     render(<SequenceVisualization probeSequence={mockProbeSequence} machineSettings={mockMachineSettings} />);
 
-    expect(screen.getByText('Stock Controls')).toBeInTheDocument();
-    expect(screen.getByText('Sequence Details')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Stock Controls' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Sequence Details' })).toBeInTheDocument();
   });
 
   it('displays stock controls by default', () => {
     render(<SequenceVisualization probeSequence={[]} machineSettings={mockMachineSettings} />);
 
-    // Should show stock controls in active tab
-    expect(screen.getByText('Stock Controls')).toBeInTheDocument();
+    // Should show stock controls tab is selected
+    expect(screen.getByRole('tab', { name: 'Stock Controls' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByText('Adjust the size and position of the stock/workpiece')).toBeInTheDocument();
   });
   it('displays probe operations details', async () => {
@@ -280,8 +280,8 @@ describe('SequenceVisualization Component', () => {
     expect(screen.getByText('3D Visualization')).toBeInTheDocument();
     expect(screen.getByText('Interactive 3D view of your machine, stock, and probe sequence')).toBeInTheDocument();
     
-    // Check that the tabs are present
-    expect(screen.getByText('Stock Controls')).toBeInTheDocument();
-    expect(screen.getByText('Sequence Details')).toBeInTheDocument();
+    // Check that the tabs are present by role
+    expect(screen.getByRole('tab', { name: 'Stock Controls' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Sequence Details' })).toBeInTheDocument();
   });
 });
