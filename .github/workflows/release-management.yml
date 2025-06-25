@@ -18,7 +18,7 @@ jobs:
     name: Post-Release Actions
     runs-on: ubuntu-latest
     if: github.event.workflow_run.conclusion == 'success'
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -32,19 +32,33 @@ jobs:
           echo "tag=$LATEST_TAG" >> $GITHUB_OUTPUT
           echo "Latest release tag: $LATEST_TAG"
 
-      - name: Create deployment notification
+      - name: Create deployment
+        id: create-deployment
+        if: steps.latest-release.outputs.tag != 'v0.0.0'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const deployment = await github.rest.repos.createDeployment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: context.sha,
+              environment: 'github-pages',
+              auto_merge: false,
+              required_contexts: []
+            });
+            return deployment.data.id;
+
+      - name: Create deployment status
         if: steps.latest-release.outputs.tag != 'v0.0.0'
         uses: actions/github-script@v7
         with:
           script: |
             const tag = '${{ steps.latest-release.outputs.tag }}';
             const deploymentUrl = `https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}`;
-            
-            // Create a deployment status
             await github.rest.repos.createDeploymentStatus({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              deployment_id: context.payload.deployment?.id || 1,
+              deployment_id: ${{ steps.create-deployment.outputs.result }},
               state: 'success',
               environment_url: deploymentUrl,
               description: `Deployed ${tag} to GitHub Pages`
