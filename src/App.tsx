@@ -194,7 +194,8 @@ const App = () => {
             <TabsContent value="visualize" className="space-y-6">
               <SequenceVisualization
                 probeSequence={probeSequence}
-                machineSettingsUnits={machineSettings.units}
+                machineSettings={machineSettings}
+                probeSequenceSettings={probeSequenceSettings}
               />
             </TabsContent>
 

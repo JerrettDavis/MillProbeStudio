@@ -1,8 +1,54 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import SequenceVisualization from '../SequenceVisualization';
-import type { ProbeOperation } from '@/types/machine';
+import type { ProbeOperation, MachineSettings, ProbeSequenceSettings } from '@/types/machine';
+
+// Mock the 3D visualization component to avoid Three.js in tests
+vi.mock('../Machine3DVisualization', () => ({
+  default: () => <div data-testid="mock-3d-visualization">3D Visualization Mock</div>
+}));
+
+const mockMachineSettings: MachineSettings = {
+  units: 'mm',
+  axes: {
+    X: {
+      positiveDirection: '+X',
+      negativeDirection: '-X',
+      polarity: 1,
+      min: -100,
+      max: 100
+    },
+    Y: {
+      positiveDirection: '+Y',
+      negativeDirection: '-Y',
+      polarity: 1,
+      min: -100,
+      max: 100
+    },
+    Z: {
+      positiveDirection: '+Z',
+      negativeDirection: '-Z',
+      polarity: 1,
+      min: -50,
+      max: 50
+    }
+  }
+};
+
+const mockProbeSequenceSettings: ProbeSequenceSettings = {
+  initialPosition: { X: 0, Y: 0, Z: 10 },
+  dwellsBeforeProbe: 2,
+  spindleSpeed: 1000,
+  units: 'mm',
+  endmillSize: {
+    input: '6mm',
+    unit: 'mm',
+    sizeInMM: 6
+  },
+  operations: []
+};
 
 const mockProbeSequence: ProbeOperation[] = [
   {
@@ -38,124 +84,165 @@ const mockProbeSequence: ProbeOperation[] = [
 ];
 
 describe('SequenceVisualization Component', () => {
-  it('renders title and description', () => {
-    render(<SequenceVisualization probeSequence={[]} machineSettingsUnits="mm" />);
+  it('renders 3D visualization title and description', () => {
+    render(<SequenceVisualization probeSequence={[]} machineSettings={mockMachineSettings} />);
     
-    expect(screen.getByText('Sequence Visualization')).toBeInTheDocument();
-    expect(screen.getByText('Visual representation of your probing sequence')).toBeInTheDocument();
+    expect(screen.getByText('3D Visualization')).toBeInTheDocument();
+    expect(screen.getByText('Interactive 3D view of your machine, stock, and probe sequence')).toBeInTheDocument();
   });
 
-  it('shows 3D visualization placeholder', () => {
-    render(<SequenceVisualization probeSequence={[]} machineSettingsUnits="mm" />);
+  it('shows 3D visualization component', () => {
+    render(<SequenceVisualization probeSequence={[]} machineSettings={mockMachineSettings} />);
     
-    expect(screen.getByText('3D visualization coming soon!')).toBeInTheDocument();
-    expect(screen.getByText("This will show a 3D representation of your mill's workspace and probe sequence")).toBeInTheDocument();
+    expect(screen.getByTestId('mock-3d-visualization')).toBeInTheDocument();
   });
 
-  it('renders sequence summary section', () => {
-    render(<SequenceVisualization probeSequence={mockProbeSequence} machineSettingsUnits="mm" />);
-    
-    expect(screen.getByText('Sequence Summary')).toBeInTheDocument();
+  it('renders tabs for controls and sequence details', () => {
+    render(<SequenceVisualization probeSequence={mockProbeSequence} machineSettings={mockMachineSettings} />);
+
+    expect(screen.getByText('Stock Controls')).toBeInTheDocument();
+    expect(screen.getByText('Sequence Details')).toBeInTheDocument();
   });
 
-  it('displays empty state when no probe operations', () => {
-    render(<SequenceVisualization probeSequence={[]} machineSettingsUnits="mm" />);
-    
-    expect(screen.getByText('Sequence Summary')).toBeInTheDocument();
-    // Should not have any probe operation cards
-    expect(screen.queryByText(/Probe.*axis/)).not.toBeInTheDocument();
-  });
+  it('displays stock controls by default', () => {
+    render(<SequenceVisualization probeSequence={[]} machineSettings={mockMachineSettings} />);
 
-  it('displays probe operations with correct information', () => {
-    render(<SequenceVisualization probeSequence={mockProbeSequence} machineSettingsUnits="mm" />);
+    // Should show stock controls in active tab
+    expect(screen.getByText('Stock Controls')).toBeInTheDocument();
+    expect(screen.getByText('Adjust the size and position of the stock/workpiece')).toBeInTheDocument();
+  });
+  it('displays probe operations details', async () => {
+    const user = userEvent.setup();
+    render(<SequenceVisualization probeSequence={mockProbeSequence} machineSettings={mockMachineSettings} />);
     
-    // First probe operation
+    // Click on the "Sequence Details" tab
+    await user.click(screen.getByText('Sequence Details'));
+    
+    // Check for probe 1 details
     expect(screen.getByText('Probe Z axis negative direction')).toBeInTheDocument();
-    expect(screen.getByText('Distance: 10mm, Feed: 100mm/min, Backoff: 2mm')).toBeInTheDocument();
-    expect(screen.getByText('1 post-moves')).toBeInTheDocument();
-
-    // Second probe operation
+    expect(screen.getByText(/Distance: 10mm/)).toBeInTheDocument();
+    expect(screen.getByText(/Feed: 100mm/)).toBeInTheDocument();
+    expect(screen.getByText(/Backoff: 2mm/)).toBeInTheDocument();
+    
+    // Check for probe 2 details
     expect(screen.getByText('Probe X axis positive direction')).toBeInTheDocument();
-    expect(screen.getByText('Distance: 5mm, Feed: 50mm/min, Backoff: 1mm')).toBeInTheDocument();
+    expect(screen.getByText(/Distance: 5mm/)).toBeInTheDocument();
+    expect(screen.getByText(/Feed: 50mm/)).toBeInTheDocument();
+    expect(screen.getByText(/Backoff: 1mm/)).toBeInTheDocument();
+  });
+
+  it('displays probe operations with correct badges', async () => {
+    const user = userEvent.setup();
+    render(<SequenceVisualization probeSequence={mockProbeSequence} machineSettings={mockMachineSettings} />);
+    
+    // Click on the "Sequence Details" tab
+    await user.click(screen.getByText('Sequence Details'));
+    
+    // Check for sequence number badges
+    expect(screen.getByText('1')).toBeInTheDocument();
+    expect(screen.getByText('2')).toBeInTheDocument();
+    
+    // Check for post-moves badges
+    expect(screen.getByText('1 post-moves')).toBeInTheDocument();
     expect(screen.getByText('0 post-moves')).toBeInTheDocument();
   });
 
-  it('displays probe operations with correct sequence numbers', () => {
-    render(<SequenceVisualization probeSequence={mockProbeSequence} machineSettingsUnits="mm" />);
+  it('displays probe operations with inch units', async () => {
+    const user = userEvent.setup();
+    const inchMachineSettings = { ...mockMachineSettings, units: 'inch' as const };
+    render(<SequenceVisualization probeSequence={mockProbeSequence} machineSettings={inchMachineSettings} />);
     
-    const badges = screen.getAllByText(/^[12]$/);
-    expect(badges).toHaveLength(2);
-    expect(badges[0]).toHaveTextContent('1');
-    expect(badges[1]).toHaveTextContent('2');
-  });
-
-  it('uses correct units in display', () => {
-    render(<SequenceVisualization probeSequence={mockProbeSequence} machineSettingsUnits="inch" />);
+    // Click on the "Sequence Details" tab
+    await user.click(screen.getByText('Sequence Details'));
     
-    expect(screen.getByText('Distance: 10inch, Feed: 100inch/min, Backoff: 2inch')).toBeInTheDocument();
-    expect(screen.getByText('Distance: 5inch, Feed: 50inch/min, Backoff: 1inch')).toBeInTheDocument();
+    // Check for inch units in the display
+    expect(screen.getByText(/Distance: 10inch/)).toBeInTheDocument();
+    expect(screen.getByText(/Feed: 100inch/)).toBeInTheDocument();
+    expect(screen.getByText(/Backoff: 2inch/)).toBeInTheDocument();
   });
+  it('renders correctly for single probe operation', async () => {
+    const user = userEvent.setup();
+    const singleProbe: ProbeOperation[] = [
+      {
+        id: 'single-probe',
+        axis: 'Y',
+        direction: 1,
+        distance: 15,
+        feedRate: 80,
+        backoffDistance: 3,
+        wcsOffset: 0,
+        preMoves: [],
+        postMoves: []
+      }
+    ];
 
-  it('handles probe operation with no post-moves correctly', () => {
-    const singleProbe: ProbeOperation[] = [{
-      id: 'probe-1',
-      axis: 'Y',
-      direction: 1,
-      distance: 15,
-      feedRate: 75,
-      backoffDistance: 3,
-      wcsOffset: 0,
-      preMoves: [],
-      postMoves: []
-    }];
-
-    render(<SequenceVisualization probeSequence={singleProbe} machineSettingsUnits="mm" />);
+    render(<SequenceVisualization probeSequence={singleProbe} machineSettings={mockMachineSettings} />);
+    
+    // Click on the "Sequence Details" tab
+    await user.click(screen.getByText('Sequence Details'));
     
     expect(screen.getByText('Probe Y axis positive direction')).toBeInTheDocument();
+    expect(screen.getByText(/Distance: 15mm/)).toBeInTheDocument();
+    expect(screen.getByText(/Feed: 80mm/)).toBeInTheDocument();
+    expect(screen.getByText(/Backoff: 3mm/)).toBeInTheDocument();
+    expect(screen.getByText('1')).toBeInTheDocument(); // Badge for first probe
     expect(screen.getByText('0 post-moves')).toBeInTheDocument();
   });
 
-  it('handles probe operation with multiple post-moves correctly', () => {
-    const probeWithManyMoves: ProbeOperation[] = [{
-      id: 'probe-1',
-      axis: 'Z',
-      direction: -1,
-      distance: 20,
-      feedRate: 80,
-      backoffDistance: 4,
-      wcsOffset: 0,
-      preMoves: [],
-      postMoves: [
-        {
-          id: 'move-1',
-          type: 'rapid',
-          description: 'Move 1',
-          axesValues: { X: 5 }
-        },
-        {
-          id: 'move-2',
-          type: 'dwell',
-          description: 'Dwell 1',
-          dwellTime: 1000
-        },
-        {
-          id: 'move-3',
-          type: 'rapid',
-          description: 'Move 2',
-          axesValues: { Y: 10 }
-        }
-      ]
-    }];
+  it('renders correctly for probe operation with many post-moves', async () => {
+    const user = userEvent.setup();
+    const probeWithManyMoves: ProbeOperation[] = [
+      {
+        id: 'probe-many-moves',
+        axis: 'Z',
+        direction: -1,
+        distance: 25,
+        feedRate: 120,
+        backoffDistance: 5,
+        wcsOffset: 0,
+        preMoves: [],
+        postMoves: [
+          {
+            id: 'move-1',
+            type: 'rapid',
+            description: 'Move 1',
+            axesValues: { X: 1 },
+            positionMode: 'relative'
+          },
+          {
+            id: 'move-2',
+            type: 'rapid',
+            description: 'Move 2',
+            axesValues: { Y: 2 },
+            positionMode: 'relative'
+          },
+          {
+            id: 'move-3',
+            type: 'dwell',
+            description: 'Dwell',
+            dwellTime: 1000
+          }
+        ]
+      }
+    ];
 
-    render(<SequenceVisualization probeSequence={probeWithManyMoves} machineSettingsUnits="mm" />);
+    render(<SequenceVisualization probeSequence={probeWithManyMoves} machineSettings={mockMachineSettings} />);
     
+    // Click on the "Sequence Details" tab
+    await user.click(screen.getByText('Sequence Details'));
+    
+    expect(screen.getByText('Probe Z axis negative direction')).toBeInTheDocument();
+    expect(screen.getByText(/Distance: 25mm/)).toBeInTheDocument();
+    expect(screen.getByText(/Feed: 120mm/)).toBeInTheDocument();
+    expect(screen.getByText(/Backoff: 5mm/)).toBeInTheDocument();
     expect(screen.getByText('3 post-moves')).toBeInTheDocument();
   });
 
-  it('displays correct direction text for positive and negative directions', () => {
+  it('handles both positive and negative directions correctly', async () => {
+    const user = userEvent.setup();
     const bothDirections: ProbeOperation[] = [
       {
-        id: 'probe-pos',
+        id: 'positive-probe',
         axis: 'X',
         direction: 1,
         distance: 10,
@@ -166,34 +253,35 @@ describe('SequenceVisualization Component', () => {
         postMoves: []
       },
       {
-        id: 'probe-neg',
-        axis: 'Y',
+        id: 'negative-probe',
+        axis: 'X',
         direction: -1,
-        distance: 10,
-        feedRate: 100,
-        backoffDistance: 2,
+        distance: 8,
+        feedRate: 90,
+        backoffDistance: 1.5,
         wcsOffset: 0,
         preMoves: [],
         postMoves: []
       }
     ];
 
-    render(<SequenceVisualization probeSequence={bothDirections} machineSettingsUnits="mm" />);
+    render(<SequenceVisualization probeSequence={bothDirections} machineSettings={mockMachineSettings} />);
+    
+    // Click on the "Sequence Details" tab
+    await user.click(screen.getByText('Sequence Details'));
     
     expect(screen.getByText('Probe X axis positive direction')).toBeInTheDocument();
-    expect(screen.getByText('Probe Y axis negative direction')).toBeInTheDocument();
-  });  it('renders proper card structure', () => {
-    render(<SequenceVisualization probeSequence={mockProbeSequence} machineSettingsUnits="mm" />);
+    expect(screen.getByText('Probe X axis negative direction')).toBeInTheDocument();
+  });
+  it('renders the main structure with 3D visualization and tabs', () => {
+    render(<SequenceVisualization probeSequence={mockProbeSequence} machineSettings={mockMachineSettings} />);
     
-    // Check that probe operations are in bordered containers
-    // The text is nested inside a div.flex-1, which is inside a div with classes including 'border'
-    const probeText = screen.getByText('Probe Z axis negative direction');
-    const flexDiv = probeText.closest('.flex-1');
-    expect(flexDiv).toBeInTheDocument();
+    // Check that the 3D visualization card is present
+    expect(screen.getByText('3D Visualization')).toBeInTheDocument();
+    expect(screen.getByText('Interactive 3D view of your machine, stock, and probe sequence')).toBeInTheDocument();
     
-    // Get the parent container which should have the border class
-    const borderContainer = flexDiv?.parentElement;
-    expect(borderContainer).toHaveClass('border');
-    expect(borderContainer).toHaveClass('rounded-lg');
+    // Check that the tabs are present
+    expect(screen.getByText('Stock Controls')).toBeInTheDocument();
+    expect(screen.getByText('Sequence Details')).toBeInTheDocument();
   });
 });
