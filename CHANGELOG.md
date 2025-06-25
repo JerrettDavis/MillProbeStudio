@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2.0.0 (2025-06-25)
+
+* Merge branch 'main' of https://github.com/JerrettDavis/MillProbeStudio ([b14f046](https://github.com/JerrettDavis/MillProbeStudio/commit/b14f046))
+* fix: improve GitHub Pages deployment in release workflow ([c5a8504](https://github.com/JerrettDavis/MillProbeStudio/commit/c5a8504))
+* feat: add drawer component and vaul dependency ([976962b](https://github.com/JerrettDavis/MillProbeStudio/commit/976962b))
+* feat: add minimize/maximize functionality to Camera Views ([f65db6d](https://github.com/JerrettDavis/MillProbeStudio/commit/f65db6d))
+* feat: redesign visualization controls with bottom drawers ([30db43a](https://github.com/JerrettDavis/MillProbeStudio/commit/30db43a))
+
+
+### BREAKING CHANGE
+
+* Visualization tab UI replaced with drawer-based controls
+
 ## 1.0.0 (2025-06-25)
 
 * fix: resolve all ESLint errors and warnings ([2868945](https://github.com/JerrettDavis/MillProbeStudio/commit/2868945))
