@@ -449,8 +449,8 @@ describe('Machine3DVisualization - React Three Fiber Tests', () => {
         child.children && 
         child.children.length === 2
       );
-      const toolShank = toolGroup.children[0];
-      const toolTip = toolGroup.children[1];
+      const toolShank = toolGroup?.children[0];
+      const toolTip = toolGroup?.children[1];
       
       const shankCylinder = toolShank?.allChildren.find(child => child.type === 'CylinderGeometry');
       const tipSphere = toolTip?.allChildren.find(child => child.type === 'SphereGeometry');

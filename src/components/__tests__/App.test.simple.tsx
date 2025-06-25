@@ -73,7 +73,7 @@ vi.mock('../GCodeImport', () => ({
 
 // Simple mock for SequenceVisualization
 vi.mock('../SequenceVisualization', () => ({
-  default: ({ sequence, machineSettings }: any) => (
+  default: ({ sequence }: any) => (
     <div data-testid="sequence-visualization">
       Visualization for {sequence?.type || 'no'} sequence
     </div>

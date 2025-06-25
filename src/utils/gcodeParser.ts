@@ -1,6 +1,8 @@
 // src/utils/gcodeParser.ts
+// Functional GCode parser with declarative patterns
 
 import type { ProbeOperation, MovementStep } from '@/types/machine';
+import { conditionally } from './functional';
 
 export interface ParsedGCodeResult {
   probeSequence: ProbeOperation[];
@@ -32,153 +34,184 @@ interface ParserState {
   pendingMoves: MovementStep[];
   hasSeenFirstBufferBlock: boolean;
   expectingBackoffMove: boolean;
-  initialPosition?: {
-    X?: number;
-    Y?: number;
-    Z?: number;
-  };
+  initialPosition?: Record<'X' | 'Y' | 'Z', number>;
   dwellsBeforeProbe?: number;
   spindleSpeed?: number;
   units?: 'mm' | 'inch';
   errors: string[];
 }
 
-// Utility functions
-const generateId = (prefix: string): string => 
-  `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+// Line processing utilities
+const lineParsers = {
+  extractAxes: (line: string): Record<string, number> => {
+    const axisPattern = /([XYZ])(-?\d*\.?\d+)/gi;
+    const axes: Record<string, number> = {};
+    let match;
+    while ((match = axisPattern.exec(line)) !== null) {
+      axes[match[1].toUpperCase()] = parseFloat(match[2]);
+    }
+    return axes;
+  },
 
-const parseAxes = (line: string): Record<string, number> => {
-  const axes: Record<string, number> = {};
-  const axisPattern = /([XYZ])(-?\d*\.?\d+)/gi;
-  let match;
-  while ((match = axisPattern.exec(line)) !== null) {
-    axes[match[1].toUpperCase()] = parseFloat(match[2]);
+  extractValue: (line: string, pattern: RegExp): number | null => {
+    const match = line.match(pattern);
+    return match ? parseFloat(match[1]) : null;
+  },
+
+  extractComment: (line: string): string | null => {
+    const commentMatch = line.match(/\((.+)\)/);
+    return commentMatch ? commentMatch[1].trim() : null;
   }
-  return axes;
 };
 
-const getPositionMode = (line: string): 'relative' | 'absolute' | 'none' => 
-  line.includes('G91') ? 'relative' : line.includes('G90') ? 'absolute' : 'none';
-
-const getCoordinateSystem = (line: string): 'machine' | 'wcs' | 'none' => 
-  line.includes('G53') ? 'machine' : line.includes('G54') ? 'wcs' : 'none';
-
-const isBufferClearDwell = (line: string): boolean => {
-  const cleanLine = line.split('(')[0].trim().toUpperCase();
-  const dwellMatch = cleanLine.match(/G4\s+P(\d*\.?\d+)/);
-  return dwellMatch ? parseFloat(dwellMatch[1]) === 0.01 : false;
+// Pattern matchers for functional command detection
+const patterns = {
+  units: /G20|G21/,
+  spindle: /(S\d+.*(M3|M4))|(M3.*S\d+)|(M4.*S\d+)/,
+  probe: /G38\.2/,
+  wcs: /G10.*L20.*P1/,
+  rapid: /G0(?!.*G10)/,
+  dwell: /G4/,
+  bufferClear: /G4\s+P0\.01/,
+  absoluteMode: /G90/,
+  relativeMode: /G91/,
+  machineCoords: /G53/,
+  wcsCoords: /G54/
 };
 
-const shouldSkipLine = (line: string): boolean =>
-  !line.trim() || line.trim().startsWith('(');
-
-const cleanLine = (line: string): string =>
-  line.split('(')[0].trim().toUpperCase();
-
-const extractValue = (line: string, pattern: RegExp): number | null => {
-  const match = line.match(pattern);
-  return match ? parseFloat(match[1]) : null;
-};
-
-const extractDwellTime = (line: string): number | null => 
-  extractValue(line, /P(\d*\.?\d+)/);
-
-const extractFeedRate = (line: string): number | null => 
-  extractValue(line, /F(\d*\.?\d+)/);
-
-const extractSpindleSpeed = (line: string): number | null => 
-  (line.includes('M3') || line.includes('M4')) ? extractValue(line, /S(\d+)/) : null;
-
-// Function to extract comment from a G-code line
-const extractComment = (line: string): string | null => {
-  const commentMatch = line.match(/\((.+)\)/);
-  return commentMatch ? commentMatch[1].trim() : null;
-};
-
-// Function to create description from comment or fallback to default
-const createDescription = (comment: string | null, fallback: string): string => {
-  return comment || fallback;
-};
-
-// Buffer clear detection using functional approach
-const findBufferClearRanges = (lines: string[]): Array<{ start: number; end: number }> => {
-  const validLines = lines
-    .map((line, index) => ({ line: line.trim(), index }))
-    .filter(({ line }) => !shouldSkipLine(line));
-
-  const ranges: Array<{ start: number; end: number }> = [];
+// Functional extractors
+const extractors = {
+  feedRate: (line: string) => lineParsers.extractValue(line, /F(\d*\.?\d+)/),
+  dwellTime: (line: string) => lineParsers.extractValue(line, /P(\d*\.?\d+)/),
+  spindleSpeed: (line: string) => 
+    (patterns.spindle.test(line)) ? lineParsers.extractValue(line, /S(\d+)/) : null,
   
-  // Use reduce to track ranges functionally
-  const finalRange = validLines.reduce<{ start: number; count: number } | null>(
-    (currentRange, { line, index }) => {
-      if (isBufferClearDwell(line)) {
-        return currentRange ? 
-          { ...currentRange, count: currentRange.count + 1 } :
-          { start: index, count: 1 };
-      } else {
-        if (currentRange && currentRange.count >= 2) {
-          ranges.push({ start: currentRange.start, end: currentRange.start + currentRange.count });
-        }
-        return null;
-      }
-    },
-    null
-  );
-
-  // Handle trailing range
-  if (finalRange && finalRange.count >= 2) {
-    ranges.push({ start: finalRange.start, end: finalRange.start + finalRange.count });
-  }
-
-  return ranges;
-};
-
-const createBufferClearSets = (lines: string[]) => {
-  const ranges = findBufferClearRanges(lines);
-  
-  return {
-    lines: new Set(
-      ranges.flatMap(({ start, end }) => 
-        Array.from({ length: end - start }, (_, i) => start + i)
-          .filter(i => isBufferClearDwell(lines[i]?.trim()))
+  positionMode: (line: string): 'relative' | 'absolute' | 'none' =>
+    conditionally.ifElse(
+      patterns.relativeMode.test(line), 
+      'relative' as const,
+      conditionally.ifElse(
+        patterns.absoluteMode.test(line),
+        'absolute' as const,
+        'none' as const
       )
     ),
-    blocks: ranges.map(({ start }) => start)
-  };
+
+  coordinateSystem: (line: string): 'machine' | 'wcs' | 'none' =>
+    conditionally.ifElse(
+      patterns.machineCoords.test(line),
+      'machine' as const,
+      conditionally.ifElse(
+        patterns.wcsCoords.test(line),
+        'wcs' as const,
+        'none' as const
+      )
+    )
 };
 
-// Command type detection
-const getCommandType = (line: string): string => {
-  const commands = [
-    { pattern: /G20|G21/, type: 'units' },
-    { pattern: /(S\d+.*(M3|M4))|(M3.*S\d+)|(M4.*S\d+)/, type: 'spindle' },
-    { pattern: /G38\.2/, type: 'probe' },
-    { pattern: /G10.*L20.*P1/, type: 'wcs' },
-    { pattern: /G0(?!.*G10)/, type: 'rapid' },
-    { pattern: /G4/, type: 'dwell' }
+// Line filtering and processing
+const lineFilters = {
+  isEmptyOrComment: (line: string): boolean => 
+    !line.trim() || line.trim().startsWith('('),
+    
+  isBufferClear: (line: string): boolean => 
+    patterns.bufferClear.test(line.split('(')[0].trim().toUpperCase()),
+    
+  cleanLine: (line: string): string => 
+    line.split('(')[0].trim().toUpperCase()
+};
+
+// Command type detector using functional approach
+const detectCommandType = (line: string): string => {
+  const commandMappings = [
+    { pattern: patterns.units, type: 'units' },
+    { pattern: patterns.spindle, type: 'spindle' },
+    { pattern: patterns.probe, type: 'probe' },
+    { pattern: patterns.wcs, type: 'wcs' },
+    { pattern: patterns.rapid, type: 'rapid' },
+    { pattern: patterns.dwell, type: 'dwell' }
   ];
 
-  return commands.find(({ pattern }) => pattern.test(line))?.type || 'other';
+  const matchedCommand = commandMappings.find(({ pattern }) => pattern.test(line));
+  return matchedCommand?.type || 'other';
 };
 
-// Command processors as a lookup table
+// Movement step factory
+const createMovementStep = (
+  type: 'rapid' | 'dwell',
+  description: string,
+  additionalProps: Partial<MovementStep> = {}
+): MovementStep => ({
+  id: `step-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+  type,
+  description,
+  ...additionalProps
+});
+
+// Probe operation factory
+const createProbeOperation = (probe: ParsedProbe, postMoves: MovementStep[]): ProbeOperation => ({
+  id: `probe-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+  axis: probe.axis,
+  direction: probe.direction,
+  distance: probe.distance,
+  feedRate: probe.feedRate,
+  backoffDistance: probe.backoffDistance,
+  wcsOffset: probe.wcsOffset || 0,
+  preMoves: [...probe.preMoves],
+  postMoves: [...postMoves]
+});
+
+// State mutation utilities (using functional patterns)
+const stateUpdaters = {
+  setUnits: (state: ParserState, line: string) => {
+    state.units = patterns.units.test(line) && line.includes('G20') ? 'inch' : 'mm';
+  },
+
+  setSpindleSpeed: (state: ParserState, speed: number) => {
+    state.spindleSpeed = speed;
+  },
+
+  addError: (state: ParserState, lineIndex: number, originalLine: string, message: string) => {
+    state.errors.push(`Error parsing line ${lineIndex + 1}: "${originalLine}" - ${message}`);
+  },
+
+  addPendingMove: (state: ParserState, move: MovementStep) => {
+    state.pendingMoves.push(move);
+  },
+
+  clearPendingMoves: (state: ParserState) => {
+    state.pendingMoves = [];
+  },
+
+  finalizeCurrentProbe: (state: ParserState) => {
+    if (state.currentProbe) {
+      const probeOperation = createProbeOperation(state.currentProbe, state.pendingMoves);
+      state.probeSequence.push(probeOperation);
+      stateUpdaters.clearPendingMoves(state);
+      state.currentProbe = null;
+      state.expectingBackoffMove = false;
+    }
+  }
+};
+
+// Command processors with functional approach
 const commandProcessors = {
-  units: (line: string, state: ParserState, ..._args: any[]) => {
-    state.units = line.includes('G20') ? 'inch' : 'mm';
-  },
+  units: (line: string, state: ParserState) => 
+    stateUpdaters.setUnits(state, line),
   
-  spindle: (line: string, state: ParserState, ..._args: any[]) => {
-    const speed = extractSpindleSpeed(line);
-    if (speed !== null) state.spindleSpeed = speed;
-  },
+  spindle: (line: string, state: ParserState) => 
+    conditionally.maybe(
+      extractors.spindleSpeed(line),
+      speed => stateUpdaters.setSpindleSpeed(state, speed)
+    ),
   
   probe: (line: string, state: ParserState, lineIndex: number, originalLine: string) => {
-    const axes = parseAxes(line);
-    const feedRate = extractFeedRate(line);
+    const axes = lineParsers.extractAxes(line);
+    const feedRate = extractors.feedRate(line);
     
     const axisKeys = Object.keys(axes);
     if (axisKeys.length !== 1) {
-      state.errors.push(`Error parsing line ${lineIndex + 1}: "${originalLine}" - Invalid probe command, expected exactly one axis`);
+      stateUpdaters.addError(state, lineIndex, originalLine, 'Invalid probe command, expected exactly one axis');
       return;
     }
 
@@ -195,37 +228,39 @@ const commandProcessors = {
       postMoves: []
     };
     
-    state.pendingMoves = [];
+    stateUpdaters.clearPendingMoves(state);
   },
   
-  wcs: (line: string, state: ParserState, ..._args: any[]) => {
+  wcs: (line: string, state: ParserState) => {
     if (!state.currentProbe) return;
     
-    const axes = parseAxes(line);
+    const axes = lineParsers.extractAxes(line);
     const axisValue = axes[state.currentProbe.axis];
     
     if (axisValue !== undefined) {
       state.currentProbe.wcsOffset = Math.abs(axisValue);
       state.expectingBackoffMove = true;
     }
-  },rapid: (line: string, state: ParserState, _lineIndex: number, originalLine: string) => {
-    const axes = parseAxes(line);
+  },
+
+  rapid: (line: string, state: ParserState, _lineIndex: number, originalLine: string) => {
+    const axes = lineParsers.extractAxes(line);
     if (Object.keys(axes).length === 0) return;
 
-    // Check for initial positioning (G90 G53 G0 with machine coordinates) before first buffer block
+    // Handle initial positioning
     if (!state.hasSeenFirstBufferBlock && line.includes('G90') && line.includes('G53')) {
       if (!state.initialPosition) {
-        state.initialPosition = {};
+        state.initialPosition = {} as Record<'X' | 'Y' | 'Z', number>;
       }
       Object.entries(axes).forEach(([axis, value]) => {
-        if (state.initialPosition && ['X', 'Y', 'Z'].includes(axis)) {
-          state.initialPosition[axis as 'X' | 'Y' | 'Z'] = value;
+        if (['X', 'Y', 'Z'].includes(axis)) {
+          state.initialPosition![axis as 'X' | 'Y' | 'Z'] = value;
         }
       });
-      return; // Don't add to pending moves
+      return;
     }
 
-    // Check for automatic backoff move
+    // Handle automatic backoff move
     const isBackoff = state.expectingBackoffMove && 
                      state.currentProbe !== null &&
                      line.includes('G91') && 
@@ -238,132 +273,109 @@ const commandProcessors = {
       return;
     }
 
-    // Extract comment from original line and create description
-    const comment = extractComment(originalLine);
+    // Create rapid move
+    const comment = lineParsers.extractComment(originalLine);
     const defaultDescription = `Rapid move to ${Object.entries(axes).map(([axis, value]) => `${axis}${value}`).join(' ')}`;
-    const description = createDescription(comment, defaultDescription);
+    const description = comment || defaultDescription;
 
-    const move: MovementStep = {
-      id: generateId('step'),
-      type: 'rapid',
-      description,
+    const move = createMovementStep('rapid', description, {
       axesValues: axes,
-      positionMode: getPositionMode(line),
-      coordinateSystem: getCoordinateSystem(line)
-    };
+      positionMode: extractors.positionMode(line),
+      coordinateSystem: extractors.coordinateSystem(line)
+    });
 
-    state.pendingMoves.push(move);
+    stateUpdaters.addPendingMove(state, move);
     state.expectingBackoffMove = false;
   },
-    dwell: (line: string, state: ParserState, _lineIndex: number, originalLine: string) => {
-    const dwellTime = extractDwellTime(line);
+
+  dwell: (line: string, state: ParserState, _lineIndex: number, originalLine: string) => {
+    const dwellTime = extractors.dwellTime(line);
     if (dwellTime === null) return;
 
-    // Extract comment from original line and create description
-    const comment = extractComment(originalLine);
+    const comment = lineParsers.extractComment(originalLine);
     const defaultDescription = `Dwell for ${dwellTime} seconds`;
-    const description = createDescription(comment, defaultDescription);
+    const description = comment || defaultDescription;
 
-    const move: MovementStep = {
-      id: generateId('step'),
-      type: 'dwell',
-      description,
-      dwellTime
-    };
-
-    state.pendingMoves.push(move);
+    const move = createMovementStep('dwell', description, { dwellTime });
+    stateUpdaters.addPendingMove(state, move);
   }
 };
 
-// Higher-order functions for processing
-const shouldClearPreMoves = (lines: string[], currentIndex: number): boolean =>
-  lines.slice(0, currentIndex)
-    .some(line => {
-      const upperLine = line.trim().toUpperCase();
-      return upperLine.includes('G53') || upperLine.includes('M4');
-    });
+// Buffer clear analysis with functional approach
+const analyzeBufferClear = (lines: string[]) => {
+  const validLines = lines
+    .map((line, index) => ({ line: line.trim(), index }))
+    .filter(({ line }) => !lineFilters.isEmptyOrComment(line));
 
-const handleBufferClearBlockStart = (lines: string[], currentIndex: number, state: ParserState) => {
+  const ranges: Array<{ start: number; end: number }> = [];
+  
+  const finalRange = validLines.reduce<{ start: number; count: number } | null>(
+    (currentRange, { line, index }) => {
+      if (lineFilters.isBufferClear(line)) {
+        return currentRange ? 
+          { ...currentRange, count: currentRange.count + 1 } :
+          { start: index, count: 1 };
+      } else {
+        if (currentRange && currentRange.count >= 2) {
+          ranges.push({ start: currentRange.start, end: currentRange.start + currentRange.count });
+        }
+        return null;
+      }
+    },
+    null
+  );
+
+  if (finalRange && finalRange.count >= 2) {
+    ranges.push({ start: finalRange.start, end: finalRange.start + finalRange.count });
+  }
+
+  return {
+    lines: new Set(
+      ranges.flatMap(({ start, end }) => 
+        Array.from({ length: end - start }, (_, i) => start + i)
+          .filter(i => lineFilters.isBufferClear(lines[i]?.trim()))
+      )
+    ),
+    blocks: ranges.map(({ start }) => start)
+  };
+};
+
+// Buffer clear block handler
+const handleBufferClearBlock = (lines: string[], currentIndex: number, state: ParserState) => {
   if (!state.hasSeenFirstBufferBlock) {
     state.hasSeenFirstBufferBlock = true;
     
-    // Count the dwells in the first buffer clear block for dwellsBeforeProbe
-    let dwellCount = 0;
-    for (let i = currentIndex; i < lines.length && isBufferClearDwell(lines[i]?.trim()); i++) {
-      dwellCount++;
-    }
+    // Count dwells functionally
+    const dwellCount = lines
+      .slice(currentIndex)
+      .takeWhile(line => lineFilters.isBufferClear(line?.trim()))
+      .length;
+    
     state.dwellsBeforeProbe = dwellCount;
     
-    if (shouldClearPreMoves(lines, currentIndex)) {
-      state.pendingMoves = [];
+    // Check if we should clear pre-moves
+    const shouldClear = lines
+      .slice(0, currentIndex)
+      .some(line => {
+        const upperLine = line.trim().toUpperCase();
+        return upperLine.includes('G53') || upperLine.includes('M4');
+      });
+
+    if (shouldClear) {
+      stateUpdaters.clearPendingMoves(state);
     }
     return;
   }
 
-  // Save current probe and start new one
-  if (state.currentProbe) {
-    const probeOperation = createProbeOperation(state.currentProbe, state.pendingMoves);
-    state.probeSequence.push(probeOperation);
-    state.pendingMoves = [];
-    state.currentProbe = null;
-    state.expectingBackoffMove = false;
-  }
+  // Finalize current probe for subsequent buffer blocks
+  stateUpdaters.finalizeCurrentProbe(state);
 };
 
-const createProbeOperation = (probe: ParsedProbe, postMoves: MovementStep[]): ProbeOperation => ({
-  id: generateId('probe'),
-  axis: probe.axis,
-  direction: probe.direction,
-  distance: probe.distance,
-  feedRate: probe.feedRate,
-  backoffDistance: probe.backoffDistance,
-  wcsOffset: probe.wcsOffset || 0,
-  preMoves: [...probe.preMoves],
-  postMoves: [...postMoves]
-});
-
-const processLineItem = (
-  lineInfo: { content: string; original: string; index: number },
-  lines: string[],
-  state: ParserState,
-  bufferClearInfo: { lines: Set<number>; blocks: number[] }
-): void => {
-  const { content, original, index } = lineInfo;
-  const { lines: bufferClearLines, blocks: bufferClearBlocks } = bufferClearInfo;
-
-  // Skip empty lines and comments
-  if (shouldSkipLine(content)) return;
-
-  // Handle buffer clear block starts
-  if (bufferClearBlocks.includes(index)) {
-    handleBufferClearBlockStart(lines, index, state);
-  }
-
-  // Skip buffer clearing commands
-  if (bufferClearLines.has(index)) return;
-
-  const cleaned = cleanLine(content);
-  if (!cleaned) return;
-
-  try {
-    const commandType = getCommandType(cleaned);
-    const processor = commandProcessors[commandType as keyof typeof commandProcessors];
-    
-    if (processor) {
-      processor(cleaned, state, index, original);
-    }
-  } catch (error) {
-    state.errors.push(`Error parsing line ${index + 1}: "${original}" - ${error}`);
-  }
-};
-
+// Main parsing function with functional flow
 export function parseGCode(gcode: string): ParsedGCodeResult {
   const lines = gcode.split('\n');
+  const bufferClearInfo = analyzeBufferClear(lines);
   
-  // Pre-process buffer clear information
-  const bufferClearInfo = createBufferClearSets(lines);
-  
-  // Initialize parser state
   const state: ParserState = {
     probeSequence: [],
     currentProbe: null,
@@ -373,22 +385,41 @@ export function parseGCode(gcode: string): ParsedGCodeResult {
     errors: []
   };
 
-  // Process all lines functionally
+  // Process lines with functional pipeline
   lines
     .map((line, index) => ({
       content: line.trim().toUpperCase(),
       original: line.trim(),
       index
     }))
-    .forEach(lineInfo => 
-      processLineItem(lineInfo, lines, state, bufferClearInfo)
-    );
+    .filter(({ content }) => !lineFilters.isEmptyOrComment(content))
+    .forEach(({ content, original, index }) => {
+      // Handle buffer clear blocks
+      if (bufferClearInfo.blocks.includes(index)) {
+        handleBufferClearBlock(lines, index, state);
+      }
+
+      // Skip buffer clearing commands
+      if (bufferClearInfo.lines.has(index)) return;
+
+      const cleaned = lineFilters.cleanLine(content);
+      if (!cleaned) return;
+
+      try {
+        const commandType = detectCommandType(cleaned);
+        const processor = commandProcessors[commandType as keyof typeof commandProcessors];
+        
+        if (processor) {
+          processor(cleaned, state, index, original);
+        }
+      } catch (error) {
+        stateUpdaters.addError(state, index, original, String(error));
+      }
+    });
 
   // Finalize the last probe
-  if (state.currentProbe) {
-    const probeOperation = createProbeOperation(state.currentProbe, state.pendingMoves);
-    state.probeSequence.push(probeOperation);
-  }
+  stateUpdaters.finalizeCurrentProbe(state);
+
   return {
     probeSequence: state.probeSequence,
     initialPosition: state.initialPosition && Object.keys(state.initialPosition).length > 0 
@@ -402,5 +433,26 @@ export function parseGCode(gcode: string): ParsedGCodeResult {
     spindleSpeed: state.spindleSpeed,
     units: state.units,
     errors: state.errors
+  };
+}
+
+// Add takeWhile to Array prototype for functional chaining
+declare global {
+  interface Array<T> {
+    takeWhile(predicate: (item: T) => boolean): T[];
+  }
+}
+
+if (!Array.prototype.takeWhile) {
+  Array.prototype.takeWhile = function<T>(this: T[], predicate: (item: T) => boolean): T[] {
+    const result: T[] = [];
+    for (const item of this) {
+      if (predicate(item)) {
+        result.push(item);
+      } else {
+        break;
+      }
+    }
+    return result;
   };
 }

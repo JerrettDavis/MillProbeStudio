@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import SequenceVisualization from '../SequenceVisualization';
-import type { ProbeOperation, MachineSettings, ProbeSequenceSettings } from '@/types/machine';
+import type { ProbeOperation, MachineSettings } from '@/types/machine';
 
 // Mock the 3D visualization component to avoid Three.js in tests
 vi.mock('../Machine3DVisualization', () => ({

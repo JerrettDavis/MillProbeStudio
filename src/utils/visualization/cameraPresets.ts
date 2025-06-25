@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { MachineSettings } from '@/types/machine';
-import type { WorkspaceBounds, Position3D } from '/machineGeometry';
+import type { WorkspaceBounds, Position3D } from './machineGeometry';
 
 export type CameraPreset = 'home' | 'front' | 'back' | 'right' | 'left' | 'top' | 'bottom' | 'iso1' | 'iso2';
 

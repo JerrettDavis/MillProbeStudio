@@ -19,6 +19,7 @@ interface AxisConfig {
   max: number;
 }
 
+// Default machine settings with declarative configuration
 const defaultMachineSettings: MachineSettings = {
   units: 'mm',
   axes: {
@@ -72,7 +73,8 @@ const App = () => {
     }));
   }, [machineSettings.units]);
 
-  const updateAxisConfig = (axis: 'X' | 'Y' | 'Z', field: keyof AxisConfig, value: any) => {
+  // Declarative axis config updater
+  const updateAxisConfig = useCallback((axis: 'X' | 'Y' | 'Z', field: keyof AxisConfig, value: any) => {
     setMachineSettings(prev => ({
       ...prev,
       axes: {
@@ -83,51 +85,44 @@ const App = () => {
         }
       }
     }));
-  };
+  }, []);
 
-  const handleGCodeImport = (parseResult: { probeSequence: ProbeOperation[]; initialPosition?: { X: number; Y: number; Z: number }; dwellsBeforeProbe?: number; spindleSpeed?: number; units?: 'mm' | 'inch' }) => {
+  // Simplified import handler using functional approach
+  const handleGCodeImport = useCallback((parseResult: {
+    probeSequence: ProbeOperation[];
+    initialPosition?: { X: number; Y: number; Z: number };
+    dwellsBeforeProbe?: number;
+    spindleSpeed?: number;
+    units?: 'mm' | 'inch';
+  }) => {
     // Update probe sequence
     setProbeSequence(parseResult.probeSequence);
 
-    // Update probe sequence settings if provided
-    if (parseResult.initialPosition) {
-      setProbeSequenceSettings(prev => ({
-        ...prev,
-        initialPosition: parseResult.initialPosition!
-      }));
+    // Build settings updates declaratively
+    const settingsUpdates: Partial<ProbeSequenceSettings> = {
+      ...(parseResult.initialPosition && { initialPosition: parseResult.initialPosition }),
+      ...(parseResult.dwellsBeforeProbe && { dwellsBeforeProbe: parseResult.dwellsBeforeProbe }),
+      ...(parseResult.spindleSpeed && { spindleSpeed: parseResult.spindleSpeed })
+    };
+
+    // Apply settings updates if any exist
+    if (Object.keys(settingsUpdates).length > 0) {
+      setProbeSequenceSettings(prev => ({ ...prev, ...settingsUpdates }));
     }
 
-    if (parseResult.dwellsBeforeProbe) {
-      setProbeSequenceSettings(prev => ({
-        ...prev,
-        dwellsBeforeProbe: parseResult.dwellsBeforeProbe!
-      }));
-    }
-
-    // Update spindle speed in probe sequence settings if provided
-    if (parseResult.spindleSpeed) {
-      setProbeSequenceSettings(prev => ({
-        ...prev,
-        spindleSpeed: parseResult.spindleSpeed!
-      }));
-    }
-
-    // Update machine settings if provided
+    // Update machine settings if units provided
     if (parseResult.units) {
-      setMachineSettings(prev => ({
-        ...prev,
-        units: parseResult.units!
-      }));
+      setMachineSettings(prev => ({ ...prev, units: parseResult.units! }));
     }
 
-    // Increment counter to force ProbeSequenceEditor re-mount
+    // Force re-mount of ProbeSequenceEditor
     setImportCounter(prev => prev + 1);
-  };
+  }, []);
 
-  const handleGenerateGCode = () => {
+  const handleGenerateGCode = useCallback(() => {
     const gcode = generateGCode(probeSequence, probeSequenceSettings);
     setGeneratedGCode(gcode);
-  };
+  }, [probeSequence, probeSequenceSettings]);
 
   // Memoize callback functions to prevent infinite loops in ProbeSequenceEditor
   const handleProbeSequenceChange = useCallback((newProbeSequence: ProbeOperation[]) => {
