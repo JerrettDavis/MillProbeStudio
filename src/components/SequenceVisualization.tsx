@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -48,11 +48,22 @@ const SequenceVisualization: React.FC<SequenceVisualizationProps> = ({
     setProbePosition(position);
   }, []);
   
-  // Create modified probe sequence settings with updated position
-  const modifiedProbeSequenceSettings = probeSequenceSettings ? {
-    ...probeSequenceSettings,
-    initialPosition: probePosition
-  } : undefined;
+  // Sync probe position when probeSequenceSettings changes (e.g., from imports)
+  useEffect(() => {
+    if (probeSequenceSettings?.initialPosition) {
+      setProbePosition(probeSequenceSettings.initialPosition);
+    }
+  }, [probeSequenceSettings?.initialPosition]);
+
+  // Create modified probe sequence settings with updated position using useMemo
+  const modifiedProbeSequenceSettings = useMemo(() => {
+    if (!probeSequenceSettings) return undefined;
+    
+    return {
+      ...probeSequenceSettings,
+      initialPosition: probePosition
+    };
+  }, [probeSequenceSettings, probePosition]);
   return (
     <div className="space-y-6">
       {/* 3D Visualization */}

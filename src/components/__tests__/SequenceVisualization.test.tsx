@@ -37,19 +37,6 @@ const mockMachineSettings: MachineSettings = {
   }
 };
 
-const mockProbeSequenceSettings: ProbeSequenceSettings = {
-  initialPosition: { X: 0, Y: 0, Z: 10 },
-  dwellsBeforeProbe: 2,
-  spindleSpeed: 1000,
-  units: 'mm',
-  endmillSize: {
-    input: '6mm',
-    unit: 'mm',
-    sizeInMM: 6
-  },
-  operations: []
-};
-
 const mockProbeSequence: ProbeOperation[] = [
   {
     id: 'probe-1',
