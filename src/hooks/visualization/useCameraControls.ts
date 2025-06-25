@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { useThree } from '@react-three/fiber';
+import { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import type { CameraPreset } from '@/utils/visualization/cameraPresets';
 import { 
   calculateCameraPosition, 
@@ -20,7 +21,7 @@ export interface CameraControls {
   currentPreset: CameraPreset;
   setPreset: (preset: CameraPreset) => void;
   isAnimating: boolean;
-  controlsRef: React.RefObject<unknown>;
+  controlsRef: React.RefObject<OrbitControlsImpl | null>;
 }
 
 /**
@@ -36,7 +37,7 @@ export const useCameraControls = ({
   const { camera } = useThree();
   const [currentPreset, setCurrentPreset] = useState<CameraPreset>('home');
   const [isAnimating, setIsAnimating] = useState(false);
-  const controlsRef = useRef<unknown>(null);
+  const controlsRef = useRef<OrbitControlsImpl>(null);
 
   const setPreset = useCallback((preset: CameraPreset) => {
     if (!controlsRef.current || isAnimating) return;
