@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import ReactThreeTestRenderer from '@react-three/test-renderer';
 import React from 'react';
 import * as THREE from 'three';
@@ -309,6 +310,38 @@ describe('CameraSystem Components', () => {
 
       const originButton = screen.getByRole('button', { name: /origin/i });
       expect(originButton).toHaveAttribute('title', 'Pivot around XYZ origin (0,0,0)');
+    });
+
+    it('should allow minimizing and maximizing the camera controls', async () => {
+      const user = userEvent.setup();
+      render(<CameraPresets {...mockProps} />);
+
+      // Initially, all controls should be visible
+      expect(screen.getByText('Camera Views')).toBeInTheDocument();
+      expect(screen.getByText('Camera Pivot')).toBeInTheDocument();
+      expect(screen.getByText(/Scroll: Zoom • Drag: Rotate • Shift\+Drag: Pan/)).toBeInTheDocument();
+
+      // Find and click the minimize button
+      const minimizeButton = screen.getByRole('button', { name: /minimize camera controls/i });
+      expect(minimizeButton).toBeInTheDocument();
+      
+      await user.click(minimizeButton);
+
+      // After minimizing, content should be hidden but header should remain
+      expect(screen.getByText('Camera Views')).toBeInTheDocument();
+      expect(screen.queryByText('Camera Pivot')).not.toBeInTheDocument();
+      expect(screen.queryByText(/Scroll: Zoom • Drag: Rotate • Shift\+Drag: Pan/)).not.toBeInTheDocument();
+
+      // The button text should change to expand
+      const expandButton = screen.getByRole('button', { name: /expand camera controls/i });
+      expect(expandButton).toBeInTheDocument();
+
+      // Click to expand again
+      await user.click(expandButton);
+
+      // Content should be visible again
+      expect(screen.getByText('Camera Pivot')).toBeInTheDocument();
+      expect(screen.getByText(/Scroll: Zoom • Drag: Rotate • Shift\+Drag: Pan/)).toBeInTheDocument();
     });
   });
 

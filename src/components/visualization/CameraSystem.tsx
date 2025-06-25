@@ -101,63 +101,84 @@ export const CameraPresets: React.FC<CameraPresetsProps> = ({
   pivotMode,
   onPivotModeChange
 }) => {
+  const [isMinimized, setIsMinimized] = React.useState(false);
+
   return (
-    <div className="absolute top-4 right-4 z-10 bg-gray-800 bg-opacity-90 backdrop-blur-sm rounded-lg p-2 shadow-lg">
-      <div className="text-xs text-gray-300 mb-2 font-semibold">Camera Views</div>
-      <div className="grid grid-cols-3 gap-1">
-        {CAMERA_PRESETS.map((preset) => (
-          <button
-            key={preset.key}
-            onClick={() => onPresetSelect(preset.key)}
-            className={`px-2 py-1 text-xs rounded transition-all duration-200 flex flex-col items-center gap-1 min-w-[60px] ${
-              currentPreset === preset.key
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white'
-            }`}
-            title={preset.label}
-          >
-            <span className="text-sm">{preset.icon}</span>
-            <span className="text-[10px] font-mono">{preset.label}</span>
-          </button>
-        ))}
+    <div className="absolute top-4 right-4 z-10 bg-gray-800 bg-opacity-90 backdrop-blur-sm rounded-lg shadow-lg">
+      {/* Header with minimize/maximize button */}
+      <div className="flex items-center justify-between p-2 border-b border-gray-600">
+        <div className="text-xs text-gray-300 font-semibold">Camera Views</div>
+        <button
+          onClick={() => setIsMinimized(!isMinimized)}
+          className="text-gray-400 hover:text-white transition-colors p-1 rounded hover:bg-gray-700"
+          title={isMinimized ? "Expand camera controls" : "Minimize camera controls"}
+          aria-label={isMinimized ? "Expand camera controls" : "Minimize camera controls"}
+        >
+          <span className="text-xs">
+            {isMinimized ? '⬆' : '⬇'}
+          </span>
+        </button>
       </div>
       
-      {/* Pivot Point Controls */}
-      <div className="mt-3 pt-3 border-t border-gray-600">
-        <div className="text-xs text-gray-300 mb-2 font-semibold">Camera Pivot</div>
-        <div className="grid grid-cols-2 gap-1">
-          <button
-            onClick={() => onPivotModeChange('tool')}
-            className={`px-2 py-1 text-xs rounded transition-all duration-200 flex flex-col items-center gap-0.5 ${
-              pivotMode === 'tool'
-                ? 'bg-orange-600 text-white shadow-md'
-                : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white'
-            }`}
-            title="Pivot around probe tool tip"
-          >
-            <span className="text-sm">🔧</span>
-            <span className="text-[10px] font-mono">Tool Tip</span>
-          </button>
-          <button
-            onClick={() => onPivotModeChange('origin')}
-            className={`px-2 py-1 text-xs rounded transition-all duration-200 flex flex-col items-center gap-0.5 ${
-              pivotMode === 'origin'
-                ? 'bg-orange-600 text-white shadow-md'
-                : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white'
-            }`}
-            title="Pivot around XYZ origin (0,0,0)"
-          >
-            <span className="text-sm">⊕</span>
-            <span className="text-[10px] font-mono">Origin</span>
-          </button>
+      {/* Collapsible content */}
+      {!isMinimized && (
+        <div className="p-2">
+          <div className="grid grid-cols-3 gap-1">
+            {CAMERA_PRESETS.map((preset) => (
+              <button
+                key={preset.key}
+                onClick={() => onPresetSelect(preset.key)}
+                className={`px-2 py-1 text-xs rounded transition-all duration-200 flex flex-col items-center gap-1 min-w-[60px] ${
+                  currentPreset === preset.key
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white'
+                }`}
+                title={preset.label}
+              >
+                <span className="text-sm">{preset.icon}</span>
+                <span className="text-[10px] font-mono">{preset.label}</span>
+              </button>
+            ))}
+          </div>
+          
+          {/* Pivot Point Controls */}
+          <div className="mt-3 pt-3 border-t border-gray-600">
+            <div className="text-xs text-gray-300 mb-2 font-semibold">Camera Pivot</div>
+            <div className="grid grid-cols-2 gap-1">
+              <button
+                onClick={() => onPivotModeChange('tool')}
+                className={`px-2 py-1 text-xs rounded transition-all duration-200 flex flex-col items-center gap-0.5 ${
+                  pivotMode === 'tool'
+                    ? 'bg-orange-600 text-white shadow-md'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white'
+                }`}
+                title="Pivot around probe tool tip"
+              >
+                <span className="text-sm">🔧</span>
+                <span className="text-[10px] font-mono">Tool Tip</span>
+              </button>
+              <button
+                onClick={() => onPivotModeChange('origin')}
+                className={`px-2 py-1 text-xs rounded transition-all duration-200 flex flex-col items-center gap-0.5 ${
+                  pivotMode === 'origin'
+                    ? 'bg-orange-600 text-white shadow-md'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white'
+                }`}
+                title="Pivot around XYZ origin (0,0,0)"
+              >
+                <span className="text-sm">⊕</span>
+                <span className="text-[10px] font-mono">Origin</span>
+              </button>
+            </div>
+          </div>
+          
+          <div className="mt-2 pt-2 border-t border-gray-600">
+            <div className="text-[10px] text-gray-400 text-center">
+              Scroll: Zoom • Drag: Rotate • Shift+Drag: Pan
+            </div>
+          </div>
         </div>
-      </div>
-      
-      <div className="mt-2 pt-2 border-t border-gray-600">
-        <div className="text-[10px] text-gray-400 text-center">
-          Scroll: Zoom • Drag: Rotate • Shift+Drag: Pan
-        </div>
-      </div>
+      )}
     </div>
   );
 };
