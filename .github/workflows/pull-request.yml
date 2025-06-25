@@ -1,0 +1,92 @@
+name: Pull Request Checks
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+jobs:
+  validate:
+    name: Validate PR
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check conventional commits
+        uses: wagoid/commitlint-github-action@v6
+        with:
+          configFile: .commitlintrc.json
+
+      - name: Run linting
+        run: npm run lint
+
+      - name: Run tests with coverage
+        run: npm run test:coverage
+
+      - name: Extract coverage info
+        id: coverage
+        run: |
+          LINES=$(cat coverage/coverage-final.json | jq '.total.lines.pct')
+          FUNCTIONS=$(cat coverage/coverage-final.json | jq '.total.functions.pct')
+          BRANCHES=$(cat coverage/coverage-final.json | jq '.total.branches.pct')
+          STATEMENTS=$(cat coverage/coverage-final.json | jq '.total.statements.pct')
+          
+          echo "lines=$LINES" >> $GITHUB_OUTPUT
+          echo "functions=$FUNCTIONS" >> $GITHUB_OUTPUT
+          echo "branches=$BRANCHES" >> $GITHUB_OUTPUT
+          echo "statements=$STATEMENTS" >> $GITHUB_OUTPUT
+
+      - name: Comment PR with coverage
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          recreate: true
+          message: |
+            ## 📊 Test Coverage Report
+            
+            | Type | Coverage |
+            |------|----------|
+            | Lines | ${{ steps.coverage.outputs.lines }}% |
+            | Functions | ${{ steps.coverage.outputs.functions }}% |
+            | Branches | ${{ steps.coverage.outputs.branches }}% |
+            | Statements | ${{ steps.coverage.outputs.statements }}% |
+            
+            ### 🚀 Build Status
+            ✅ All checks passed! This PR is ready for review.
+
+      - name: Build application
+        run: npm run build
+
+      - name: Check build size
+        run: |
+          if [ -d "dist" ]; then
+            BUILD_SIZE=$(du -sh dist | cut -f1)
+            echo "Build size: $BUILD_SIZE"
+            echo "BUILD_SIZE=$BUILD_SIZE" >> $GITHUB_ENV
+          fi
+
+      - name: Archive test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-pr-${{ github.event.number }}
+          path: |
+            coverage/
+            dist/
+          retention-days: 7

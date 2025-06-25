@@ -1,0 +1,58 @@
+name: Release Management
+
+on:
+  workflow_run:
+    workflows: ["CI/CD Pipeline"]
+    types:
+      - completed
+    branches: [main]
+
+permissions:
+  contents: write
+  packages: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  post-release:
+    name: Post-Release Actions
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get latest release
+        id: latest-release
+        run: |
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+          echo "Latest release tag: $LATEST_TAG"
+
+      - name: Create deployment notification
+        if: steps.latest-release.outputs.tag != 'v0.0.0'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const tag = '${{ steps.latest-release.outputs.tag }}';
+            const deploymentUrl = `https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}`;
+            
+            // Create a deployment status
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: context.payload.deployment?.id || 1,
+              state: 'success',
+              environment_url: deploymentUrl,
+              description: `Deployed ${tag} to GitHub Pages`
+            });
+
+      - name: Update project documentation
+        if: steps.latest-release.outputs.tag != 'v0.0.0'
+        run: |
+          echo "📦 Latest release: ${{ steps.latest-release.outputs.tag }}" >> release-info.md
+          echo "🚀 Deploy URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}" >> release-info.md
+          echo "📅 Released: $(date -u)" >> release-info.md
