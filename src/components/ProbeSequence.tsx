@@ -144,7 +144,7 @@ const ProbeSequenceEditor: React.FC<ProbeSequenceProps> = ({
         setProbeSequence(prev => [...prev, newProbe]);
     };
 
-    const updateProbeOperation = (id: string, field: keyof ProbeOperation, value: any) => {
+    const updateProbeOperation = (id: string, field: keyof ProbeOperation, value: ProbeOperation[keyof ProbeOperation]) => {
         setProbeSequence(prev => prev.map(probe =>
             probe.id === id ? { ...probe, [field]: value } : probe
         ));
@@ -175,7 +175,7 @@ const ProbeSequenceEditor: React.FC<ProbeSequenceProps> = ({
         ));
     };
 
-    const updateMovementStep = (probeId: string, stepId: string, field: keyof MovementStep, value: any, moveType: 'pre' | 'post' = 'post') => {
+    const updateMovementStep = (probeId: string, stepId: string, field: keyof MovementStep, value: MovementStep[keyof MovementStep], moveType: 'pre' | 'post' = 'post') => {
         setProbeSequence(prev => prev.map(probe =>
             probe.id === probeId ? {
                 ...probe,
@@ -210,7 +210,13 @@ const ProbeSequenceEditor: React.FC<ProbeSequenceProps> = ({
                     value={move.axesValues?.X ?? ''}
                     onChange={e => {
                         const val = parseFloat(e.target.value);
-                        updateMovementStep(probe.id, move.id, 'axesValues', { ...move.axesValues, X: isNaN(val) ? undefined : val }, moveType);
+                        const newAxesValues = { ...move.axesValues };
+                        if (isNaN(val)) {
+                            delete newAxesValues.X;
+                        } else {
+                            newAxesValues.X = val;
+                        }
+                        updateMovementStep(probe.id, move.id, 'axesValues', newAxesValues, moveType);
                     }}
                     placeholder="X"
                 />
@@ -224,7 +230,13 @@ const ProbeSequenceEditor: React.FC<ProbeSequenceProps> = ({
                     value={move.axesValues?.Y ?? ''}
                     onChange={e => {
                         const val = parseFloat(e.target.value);
-                        updateMovementStep(probe.id, move.id, 'axesValues', { ...move.axesValues, Y: isNaN(val) ? undefined : val }, moveType);
+                        const newAxesValues = { ...move.axesValues };
+                        if (isNaN(val)) {
+                            delete newAxesValues.Y;
+                        } else {
+                            newAxesValues.Y = val;
+                        }
+                        updateMovementStep(probe.id, move.id, 'axesValues', newAxesValues, moveType);
                     }}
                     placeholder="Y"
                 />
@@ -238,7 +250,13 @@ const ProbeSequenceEditor: React.FC<ProbeSequenceProps> = ({
                     value={move.axesValues?.Z ?? ''}
                     onChange={e => {
                         const val = parseFloat(e.target.value);
-                        updateMovementStep(probe.id, move.id, 'axesValues', { ...move.axesValues, Z: isNaN(val) ? undefined : val }, moveType);
+                        const newAxesValues = { ...move.axesValues };
+                        if (isNaN(val)) {
+                            delete newAxesValues.Z;
+                        } else {
+                            newAxesValues.Z = val;
+                        }
+                        updateMovementStep(probe.id, move.id, 'axesValues', newAxesValues, moveType);
                     }}
                     placeholder="Z"
                 />
@@ -247,7 +265,7 @@ const ProbeSequenceEditor: React.FC<ProbeSequenceProps> = ({
     );    // Handler for WCS Offset change - simple controlled input
     const handleWcsOffsetChange = (probeId: string, value: string) => {
         if (value === '' || isNaN(Number(value))) {
-            updateProbeOperation(probeId, 'wcsOffset', undefined);
+            updateProbeOperation(probeId, 'wcsOffset', 0);
         } else {
             updateProbeOperation(probeId, 'wcsOffset', parseFloat(value));
         }

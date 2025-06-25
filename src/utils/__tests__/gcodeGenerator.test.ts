@@ -44,9 +44,8 @@ describe('gcodeGenerator', () => {
       expect(gcode).toContain('G4 P3                                   (Dwell for 3 seconds to let spindle stabilize)');
     });    it('should generate probe operation with buffer clearing', () => {
       const gcode = GCodeGenerator.generate([sampleProbeOperation], sampleProbeSequenceSettings);
-      
-      // Should contain buffer clearing dwells
-      const bufferClearCount = (gcode.match(/G4 P0\.01                                \(Empty Buffer\)/g) || []).length;
+          // Should contain buffer clearing dwells
+    const bufferClearCount = (gcode.match(/G4 P0\.01\s{32}\(Empty Buffer\)/g) || []).length;
       expect(bufferClearCount).toBe(2); // dwellsBeforeProbe = 2
       
       // Should contain probe command

@@ -20,7 +20,7 @@ export interface CameraControls {
   currentPreset: CameraPreset;
   setPreset: (preset: CameraPreset) => void;
   isAnimating: boolean;
-  controlsRef: React.RefObject<any>;
+  controlsRef: React.RefObject<unknown>;
 }
 
 /**
@@ -36,7 +36,7 @@ export const useCameraControls = ({
   const { camera } = useThree();
   const [currentPreset, setCurrentPreset] = useState<CameraPreset>('home');
   const [isAnimating, setIsAnimating] = useState(false);
-  const controlsRef = useRef<any>(null);
+  const controlsRef = useRef<unknown>(null);
 
   const setPreset = useCallback((preset: CameraPreset) => {
     if (!controlsRef.current || isAnimating) return;

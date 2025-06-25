@@ -1,4 +1,4 @@
-# Mill Probe Stage
+# Mill Probe Studio
 
 A React + TypeScript + Vite application for managing CNC mill probe sequences and G-code generation.
 

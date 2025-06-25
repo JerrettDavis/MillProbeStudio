@@ -11,7 +11,7 @@ export const createStateUpdater = <T>() => ({
   ) => {
     setState(prev => ({
       ...prev,
-      [path]: typeof value === 'function' ? (value as Function)(prev[path]) : value
+      [path]: typeof value === 'function' ? (value as (prev: T[K]) => T[K])(prev[path]) : value
     }));
   },
 
@@ -32,7 +32,7 @@ export const createStateUpdater = <T>() => ({
   ) => {
     setState(prev => ({
       ...prev,
-      [arrayKey]: (prev[arrayKey] as any[]).map((item, i) => 
+      [arrayKey]: (prev[arrayKey] as unknown[]).map((item, i) => 
         i === index ? value : item
       )
     }));
@@ -118,7 +118,7 @@ export const compose = {
   pipe: <T>(...fns: Array<(arg: T) => T>) => (value: T): T =>
     fns.reduce((acc, fn) => fn(acc), value),
 
-  debounce: <T extends (...args: any[]) => void>(
+  debounce: <T extends (...args: unknown[]) => void>(
     fn: T, 
     delay: number
   ): ((...args: Parameters<T>) => void) => {
@@ -129,7 +129,7 @@ export const compose = {
     };
   },
 
-  throttle: <T extends (...args: any[]) => void>(
+  throttle: <T extends (...args: unknown[]) => void>(
     fn: T, 
     delay: number
   ): ((...args: Parameters<T>) => void) => {

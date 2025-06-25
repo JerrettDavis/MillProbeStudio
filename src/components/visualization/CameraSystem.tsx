@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useMemo } from 'react';
 import { useThree, useFrame } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
+import { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { MACHINE_ORIENTATION_CONFIGS } from '@/config/visualization/visualizationConfig';
 import type { MachineSettings } from '@/types/machine';
 import type { Position3D } from '@/utils/visualization/machineGeometry';
@@ -17,17 +18,17 @@ export interface EnhancedOrbitControlsProps {
 /**
  * Enhanced OrbitControls component with machine-specific configuration
  */
-export const EnhancedOrbitControls = React.forwardRef<any, EnhancedOrbitControlsProps>(({
+export const EnhancedOrbitControls = React.forwardRef<OrbitControlsImpl, EnhancedOrbitControlsProps>(({
   target,
   machineSettings,
   machineOrientation,
   onControlsReady
 }, ref) => {
   const { camera } = useThree();
-  const internalControlsRef = useRef<any>(null);
+  const internalControlsRef = useRef<OrbitControlsImpl>(null);
   
   // Use the passed ref or internal ref
-  const controlsRef = (ref as React.MutableRefObject<any>) || internalControlsRef;
+  const controlsRef = (ref as React.MutableRefObject<OrbitControlsImpl>) || internalControlsRef;
   
   // Calculate dynamic max distance based on machine workspace
   const maxDistance = useMemo(() => {
@@ -63,7 +64,7 @@ export const EnhancedOrbitControls = React.forwardRef<any, EnhancedOrbitControls
         }
       });
     }
-  }, [target, onControlsReady, machineOrientation, camera]);
+  }, [target, onControlsReady, machineOrientation, camera, controlsRef]);
   
   return (
     <OrbitControls 

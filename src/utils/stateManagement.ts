@@ -101,51 +101,64 @@ export const useProbeSequenceSettings = (
   settings: ProbeSequenceSettings,
   setSettings: (settings: ProbeSequenceSettings) => void
 ) => {
+  // Define callbacks at the hook level, not in useMemo
+  const updateInitialPosition = useCallback((axis: 'X' | 'Y' | 'Z', value: number) => {
+    setSettings({
+      ...settings,
+      initialPosition: { ...settings.initialPosition, [axis]: value }
+    });
+  }, [settings, setSettings]);
+
+  const updateDwellsBeforeProbe = useCallback((value: number) => {
+    setSettings({ ...settings, dwellsBeforeProbe: value });
+  }, [settings, setSettings]);
+
+  const updateSpindleSpeed = useCallback((value: number) => {
+    setSettings({ ...settings, spindleSpeed: value });
+  }, [settings, setSettings]);
+
+  const updateUnits = useCallback((units: 'mm' | 'inch') => {
+    setSettings({ ...settings, units });
+  }, [settings, setSettings]);
+
+  const updateEndmillSize = useCallback((
+    input?: string,
+    unit?: 'fraction' | 'inch' | 'mm'
+  ) => {
+    const currentSize = settings.endmillSize;
+    const newInput = input ?? currentSize.input;
+    const newUnit = unit ?? currentSize.unit;
+    const sizeInMM = parseToolSize(newInput, newUnit);
+
+    setSettings({
+      ...settings,
+      endmillSize: {
+        input: newInput,
+        unit: newUnit,
+        sizeInMM
+      }
+    });
+  }, [settings, setSettings]);
+
+  const updateMultiple = useCallback((updates: Partial<ProbeSequenceSettings>) => {
+    setSettings({ ...settings, ...updates });
+  }, [settings, setSettings]);
+
   return useMemo(() => ({
-    // Update individual settings
-    updateInitialPosition: useCallback((axis: 'X' | 'Y' | 'Z', value: number) => {
-      setSettings({
-        ...settings,
-        initialPosition: { ...settings.initialPosition, [axis]: value }
-      });
-    }, [settings, setSettings]),
-
-    updateDwellsBeforeProbe: useCallback((value: number) => {
-      setSettings({ ...settings, dwellsBeforeProbe: value });
-    }, [settings, setSettings]),
-
-    updateSpindleSpeed: useCallback((value: number) => {
-      setSettings({ ...settings, spindleSpeed: value });
-    }, [settings, setSettings]),
-
-    updateUnits: useCallback((units: 'mm' | 'inch') => {
-      setSettings({ ...settings, units });
-    }, [settings, setSettings]),
-
-    updateEndmillSize: useCallback((
-      input?: string,
-      unit?: 'fraction' | 'inch' | 'mm'
-    ) => {
-      const currentSize = settings.endmillSize;
-      const newInput = input ?? currentSize.input;
-      const newUnit = unit ?? currentSize.unit;
-      const sizeInMM = parseToolSize(newInput, newUnit);
-
-      setSettings({
-        ...settings,
-        endmillSize: {
-          input: newInput,
-          unit: newUnit,
-          sizeInMM
-        }
-      });
-    }, [settings, setSettings]),
-
-    // Batch updates
-    updateMultiple: useCallback((updates: Partial<ProbeSequenceSettings>) => {
-      setSettings({ ...settings, ...updates });
-    }, [settings, setSettings])
-  }), [settings, setSettings]);
+    updateInitialPosition,
+    updateDwellsBeforeProbe,
+    updateSpindleSpeed,
+    updateUnits,
+    updateEndmillSize,
+    updateMultiple
+  }), [
+    updateInitialPosition,
+    updateDwellsBeforeProbe,
+    updateSpindleSpeed,
+    updateUnits,
+    updateEndmillSize,
+    updateMultiple
+  ]);
 };
 
 // Tool size parsing utility
@@ -178,10 +191,10 @@ interface ImportResult {
 export const createImportHandler = (
   setProbeSequence: (sequence: ProbeOperation[]) => void,
   setProbeSequenceSettings: (updater: (prev: ProbeSequenceSettings) => ProbeSequenceSettings) => void,
-  setMachineSettings: (updater: (prev: any) => any) => void,
+  setMachineSettings: (updater: (prev: Record<string, unknown>) => Record<string, unknown>) => void,
   setImportCounter: (updater: (prev: number) => number) => void
 ) => {
-  return useCallback((result: ImportResult) => {
+  return (result: ImportResult) => {
     // Update probe sequence
     setProbeSequence(result.probeSequence);
 
@@ -212,5 +225,5 @@ export const createImportHandler = (
 
     // Force re-mount of ProbeSequenceEditor
     setImportCounter(prev => prev + 1);
-  }, [setProbeSequence, setProbeSequenceSettings, setMachineSettings, setImportCounter]);
+  };
 };

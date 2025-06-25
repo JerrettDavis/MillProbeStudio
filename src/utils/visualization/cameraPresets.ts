@@ -227,7 +227,13 @@ export const animateCameraToPosition = (
   camera: THREE.Camera,
   targetPosition: Position3D,
   targetLookAt: Position3D,
-  controls: any,
+  controls: { 
+    update: () => void; 
+    target: { 
+      set: (x: number, y: number, z: number) => void;
+      copy: (vector: THREE.Vector3) => void;
+    } 
+  },
   duration: number = 1000,
   onComplete?: () => void
 ): void => {

@@ -61,7 +61,7 @@ export default defineConfig({
     sourcemap: false
   },
   
-  // @ts-ignore
+  // @ts-expect-error - Vite's test config is not fully typed
   test: {
     globals: true,
     environment: 'jsdom',

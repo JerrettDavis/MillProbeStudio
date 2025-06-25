@@ -9,7 +9,7 @@ import type { MachineSettings, AxisConfig } from '@/types/machine';
 interface MachineSettingsProps {
   machineSettings: MachineSettings;
   setMachineSettings: React.Dispatch<React.SetStateAction<MachineSettings>>;
-  updateAxisConfig: (axis: 'X' | 'Y' | 'Z', field: keyof AxisConfig, value: any) => void;
+  updateAxisConfig: (axis: 'X' | 'Y' | 'Z', field: keyof AxisConfig, value: AxisConfig[keyof AxisConfig]) => void;
 }
 
 const MachineSettingsForm: React.FC<MachineSettingsProps> = ({ machineSettings, setMachineSettings, updateAxisConfig }) => (

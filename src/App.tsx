@@ -74,7 +74,7 @@ const App = () => {
   }, [machineSettings.units]);
 
   // Declarative axis config updater
-  const updateAxisConfig = useCallback((axis: 'X' | 'Y' | 'Z', field: keyof AxisConfig, value: any) => {
+  const updateAxisConfig = useCallback((axis: 'X' | 'Y' | 'Z', field: keyof AxisConfig, value: AxisConfig[keyof AxisConfig]) => {
     setMachineSettings(prev => ({
       ...prev,
       axes: {

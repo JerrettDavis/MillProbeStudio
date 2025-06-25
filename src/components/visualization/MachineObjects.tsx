@@ -33,7 +33,7 @@ export const InteractiveStock: React.FC<InteractiveStockProps> = ({
     setIsHovered(true);
   }, []);
 
-  const handlePointerMove = useCallback((event: any) => {
+  const handlePointerMove = useCallback((event: { point: { x: number; y: number; z: number } }) => {
     if (onHover && isHovered) {
       const point = event.point;
       onHover([point.x, point.y, point.z]);
@@ -97,7 +97,7 @@ export const ToolVisualization: React.FC<ToolVisualizationProps> = ({
     setIsHovered(true);
   }, []);
 
-  const handlePointerMove = useCallback((event: any) => {
+  const handlePointerMove = useCallback((event: { point: { x: number; y: number; z: number } }) => {
     if (onHover && isHovered) {
       const point = event.point;
       onHover([point.x, point.y, point.z]);

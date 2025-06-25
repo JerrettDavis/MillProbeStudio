@@ -7,8 +7,8 @@ import type { ProbeSequenceSettings } from '@/types/machine';
 describe('ProbeSequenceEditor Component', () => {
   const baseProbe = {
     id: 'probe-1',
-    axis: 'X' as 'X',
-    direction: 1 as 1,
+    axis: 'X' as const,
+    direction: 1 as const,
     distance: 10,
     feedRate: 100,
     backoffDistance: 2,
