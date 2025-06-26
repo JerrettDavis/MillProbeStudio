@@ -1,145 +1,56 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
 import ProbeSequenceEditor from '@/components/ProbeSequence';
 import GCodeImport from '@/components/GCodeImport';
 import SequenceVisualization from '@/components/SequenceVisualization';
 import GCodeOutput from '@/components/GCodeOutput';
-import type { MachineSettings, ProbeOperation, ProbeSequenceSettings } from '@/types/machine';
 import { generateGCode } from '@/utils/gcodeGenerator';
 import { ThemeProvider } from '@/components/theme-provider';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-
-// Type definitions
-interface AxisConfig {
-  label: string;
-  positiveDirection: string;
-  negativeDirection: string;
-  polarity: 1 | -1;
-  min: number;
-  max: number;
-}
-
-// Default machine settings with declarative configuration
-const defaultMachineSettings: MachineSettings = {
-  units: 'mm',
-  axes: {
-    X: {
-      positiveDirection: 'Down',
-      negativeDirection: 'Up',
-      polarity: 1,
-      min: -86,
-      max: -0.5
-    },
-    Y: {
-      positiveDirection: 'Right',
-      negativeDirection: 'Left',
-      polarity: 1,
-      min: -0.5,
-      max: -241.50
-    },
-    Z: {
-      positiveDirection: 'In',
-      negativeDirection: 'Out',
-      polarity: -1,
-      min: -0.5,
-      max: -78.50
-    }
-  },
-  machineOrientation: 'horizontal',
-  stageDimensions: [12.7, 304.8, 63.5]
-};
+import { 
+  useMachineSettings,
+  useProbeSequence,
+  useProbeSequenceSettings,
+  useGeneratedGCode,
+  useMachineSettingsActions,
+  useProbeSequenceActions,
+  useGCodeActions,
+  useImportActions,
+  useAppStore
+} from '@/store';
 
 const App = () => {
-  const [machineSettings, setMachineSettings] = useState<MachineSettings>(defaultMachineSettings);
-  const [probeSequence, setProbeSequence] = useState<ProbeOperation[]>([]);
-  const [probeSequenceSettings, setProbeSequenceSettings] = useState<ProbeSequenceSettings>({
-    initialPosition: { X: -78, Y: -100, Z: -41 },
-    dwellsBeforeProbe: 15,
-    spindleSpeed: 5000,
-    units: 'mm',
-    endmillSize: {
-      input: '1/8',
-      unit: 'fraction',
-      sizeInMM: 3.175 // 1/8 inch in mm
-    },
-    operations: []
-  });
-  const [generatedGCode, setGeneratedGCode] = useState<string>('');
-  const [importCounter, setImportCounter] = useState<number>(0);
+  // Get state from store
+  const machineSettings = useMachineSettings();
+  const probeSequence = useProbeSequence();
+  const probeSequenceSettings = useProbeSequenceSettings();
+  const generatedGCode = useGeneratedGCode();
+  const importCounter = useAppStore((state) => state.importCounter);
+  
+  // Get actions from store
+  const { setMachineSettings, updateAxisConfig } = useMachineSettingsActions();
+  const { setProbeSequence, setProbeSequenceSettings } = useProbeSequenceActions();
+  const { setGeneratedGCode } = useGCodeActions();
+  const { handleGCodeImport } = useImportActions();
 
-  // Sync units from machine settings to probe sequence settings
-  useEffect(() => {
-    setProbeSequenceSettings(prev => ({
-      ...prev,
-      units: machineSettings.units
-    }));
-  }, [machineSettings.units]);
-
-  // Declarative axis config updater
-  const updateAxisConfig = useCallback((axis: 'X' | 'Y' | 'Z', field: keyof AxisConfig, value: AxisConfig[keyof AxisConfig]) => {
-    setMachineSettings(prev => ({
-      ...prev,
-      axes: {
-        ...prev.axes,
-        [axis]: {
-          ...prev.axes[axis],
-          [field]: value
-        }
-      }
-    }));
-  }, []);
-
-  // Simplified import handler using functional approach
-  const handleGCodeImport = useCallback((parseResult: {
-    probeSequence: ProbeOperation[];
-    initialPosition?: { X: number; Y: number; Z: number };
-    dwellsBeforeProbe?: number;
-    spindleSpeed?: number;
-    units?: 'mm' | 'inch';
-  }) => {
-    // Update probe sequence
-    setProbeSequence(parseResult.probeSequence);
-
-    // Build settings updates declaratively
-    const settingsUpdates: Partial<ProbeSequenceSettings> = {
-      ...(parseResult.initialPosition && { initialPosition: parseResult.initialPosition }),
-      ...(parseResult.dwellsBeforeProbe && { dwellsBeforeProbe: parseResult.dwellsBeforeProbe }),
-      ...(parseResult.spindleSpeed && { spindleSpeed: parseResult.spindleSpeed })
-    };
-
-    // Apply settings updates if any exist
-    if (Object.keys(settingsUpdates).length > 0) {
-      setProbeSequenceSettings(prev => ({ ...prev, ...settingsUpdates }));
-    }
-
-    // Update machine settings if units provided
-    if (parseResult.units) {
-      setMachineSettings(prev => ({ ...prev, units: parseResult.units! }));
-    }
-
-    // Force re-mount of ProbeSequenceEditor
-    setImportCounter(prev => prev + 1);
-  }, []);
-
+  // Generate G-code callback
   const handleGenerateGCode = useCallback(() => {
     const gcode = generateGCode(probeSequence, probeSequenceSettings);
     setGeneratedGCode(gcode);
-  }, [probeSequence, probeSequenceSettings]);
+  }, [probeSequence, probeSequenceSettings, setGeneratedGCode]);
 
   // Memoize callback functions to prevent infinite loops in ProbeSequenceEditor
-  const handleProbeSequenceChange = useCallback((newProbeSequence: ProbeOperation[]) => {
+  const handleProbeSequenceChange = useCallback((newProbeSequence: typeof probeSequence) => {
     setProbeSequence(newProbeSequence);
-  }, []);
+  }, [setProbeSequence]);
 
-  const handleProbeSequenceSettingsChange = useCallback((newSettings: ProbeSequenceSettings) => {
+  const handleProbeSequenceSettingsChange = useCallback((newSettings: typeof probeSequenceSettings) => {
     setProbeSequenceSettings(newSettings);
-  }, []);
+  }, [setProbeSequenceSettings]);
 
   return (
     <ThemeProvider>
       <div className="min-h-screen p-4">
-        <div className="max-w-7xl mx-auto">
-
-
+        <div className="max-w-7xl mx-auto">          
           <Tabs defaultValue="sequence" className="space-y-6">
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="sequence">Probe Sequence</TabsTrigger>

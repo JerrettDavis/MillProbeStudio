@@ -36,6 +36,8 @@ const mockCamera = {
 const mockControls = {
   target: new THREE.Vector3(0, 0, 0),
   update: vi.fn(),
+  addEventListener: vi.fn(),
+  removeEventListener: vi.fn(),
   current: {
     target: { 
       set: vi.fn(),
@@ -48,7 +50,9 @@ const mockControls = {
     minDistance: 0.1,
     enableDamping: true,
     dampingFactor: 0.1,
-    object: mockCamera
+    object: mockCamera,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn()
   }
 };
 
@@ -84,20 +88,22 @@ global.ResizeObserver = MockResizeObserver as any;
 
 // Mock @react-three/drei
 vi.mock('@react-three/drei', () => ({
-  OrbitControls: vi.fn().mockImplementation(({ ref, children, onControlsReady, ...props }) => {
-    if (ref && typeof ref === 'object' && 'current' in ref) {
-      ref.current = mockControls.current;
-    }
-    // Simulate onControlsReady callback after a brief delay
+  OrbitControls: React.forwardRef((props: any, ref: any) => {
+    const { onControlsReady, ...restProps } = props;
     React.useEffect(() => {
+      // Set up the ref to point to our mock controls
+      if (ref && typeof ref === 'object' && 'current' in ref) {
+        ref.current = mockControls.current;
+      }
+      // Trigger onControlsReady after a short delay to simulate the real behavior
       if (onControlsReady) {
         const timeoutId = setTimeout(() => {
           onControlsReady(mockControls.current);
         }, 10);
         return () => clearTimeout(timeoutId);
       }
-    }, [onControlsReady]);
-    return <primitive object={new THREE.Group()} {...props} />;
+    }, [onControlsReady, ref]);
+    return React.createElement('primitive', { object: new THREE.Group(), ...restProps });
   })
 }));
 
@@ -123,6 +129,10 @@ describe('CameraSystem Components', () => {
       );
 
       expect(renderer.scene).toBeTruthy();
+      
+      // Wait a bit for the timeout in the mock to trigger
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
       expect(onControlsReady).toHaveBeenCalledWith({
         setPosition: expect.any(Function)
       });
@@ -138,6 +148,9 @@ describe('CameraSystem Components', () => {
           onControlsReady={onControlsReady}
         />
       );
+
+      // Wait for the mock timeout to trigger
+      await new Promise(resolve => setTimeout(resolve, 50));
 
       // Max dimension should be 300 (Y axis: 150 - (-150))
       // maxDistance should be 300 * 1.25 = 375
@@ -158,6 +171,9 @@ describe('CameraSystem Components', () => {
         />
       );
 
+      // Wait for the mock timeout to trigger
+      await new Promise(resolve => setTimeout(resolve, 50));
+
       // Verify the controls were set up and onControlsReady was called
       expect(onControlsReady).toHaveBeenCalledWith({
         setPosition: expect.any(Function)
@@ -174,6 +190,9 @@ describe('CameraSystem Components', () => {
           onControlsReady={onControlsReady}
         />
       );
+
+      // Wait for the mock timeout to trigger
+      await new Promise(resolve => setTimeout(resolve, 50));
 
       // Verify the controls were set up and onControlsReady was called
       expect(onControlsReady).toHaveBeenCalledWith({
@@ -192,6 +211,9 @@ describe('CameraSystem Components', () => {
         />
       );
 
+      // Wait for initial setup
+      await new Promise(resolve => setTimeout(resolve, 50));
+
       // Update target
       const newTarget = { x: 10, y: 20, z: 30 };
       renderer.update(
@@ -201,6 +223,9 @@ describe('CameraSystem Components', () => {
           onControlsReady={onControlsReady}
         />
       );
+
+      // Wait for update to complete
+      await new Promise(resolve => setTimeout(resolve, 50));
 
       // Verify controls were set up correctly
       expect(onControlsReady).toHaveBeenCalledWith({

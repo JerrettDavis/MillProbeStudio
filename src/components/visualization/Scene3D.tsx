@@ -39,6 +39,8 @@ export interface Scene3DProps {
   currentPreset?: CameraPreset;
   onCameraUpdate?: (position: { x: number; y: number; z: number }) => void;
   onControlsReady?: () => void;
+  onManualCameraChange?: () => void;
+  onAnimationStateChange?: (isAnimating: boolean) => void; // Add animation state callback
   pivotMode: 'tool' | 'origin';
 }
 
@@ -56,10 +58,13 @@ export const Scene3D: React.FC<Scene3DProps> = ({
   currentPreset,
   onCameraUpdate,
   onControlsReady,
+  onManualCameraChange,
+  onAnimationStateChange,
   pivotMode
 }) => {
   const { camera } = useThree();
   const [hoverPosition, setHoverPosition] = useState<[number, number, number] | null>(null);
+  const [isAnimating, setIsAnimating] = useState(false);
   
   // Extract machine orientation and stage dimensions from machine settings
   const machineOrientation = machineSettings.machineOrientation;
@@ -99,10 +104,18 @@ export const Scene3D: React.FC<Scene3DProps> = ({
 
   // Store reference to controls methods
   const controlsMethodsRef = useRef<{ setPosition: (position: Position3D) => void } | null>(null);
+  const animationRef = useRef<{ 
+    isAnimating: boolean; 
+    animationId?: number; 
+    isPresetAnimation?: boolean; // Flag to distinguish preset animations from other changes
+  }>({ isAnimating: false });
 
   // Handle camera preset changes
   useEffect(() => {
-    if (currentPreset && onCameraUpdate) {
+    // Only animate if there's a valid preset and not already animating
+    if (currentPreset && !animationRef.current.isAnimating) {
+      console.log('Starting preset animation for:', currentPreset); // Debug log
+      
       const targetPosition = cameraTarget;
       const newCameraPosition = calculateCameraPosition(
         currentPreset,
@@ -112,8 +125,14 @@ export const Scene3D: React.FC<Scene3DProps> = ({
         machineOrientation
       );
       
+      // Mark animation as starting
+      animationRef.current.isAnimating = true;
+      animationRef.current.isPresetAnimation = true; // Mark as preset animation
+      setIsAnimating(true);
+      onAnimationStateChange?.(true);
+      
       // Animate camera to new position
-      const duration = 1000; // 1 second animation
+      const duration = 600; // Reduced from 800ms for faster completion
       const startTime = Date.now();
       const startPosition = {
         x: camera.position.x,
@@ -122,12 +141,18 @@ export const Scene3D: React.FC<Scene3DProps> = ({
       };
       
       const animate = () => {
+        // Check if animation was cancelled by manual interaction
+        if (!animationRef.current.isAnimating) {
+          console.log('Animation cancelled by manual interaction'); // Debug log
+          return; // Exit immediately if animation was cancelled
+        }
+        
         const elapsed = Date.now() - startTime;
         const progress = Math.min(elapsed / duration, 1);
         
-        // Smooth easing function
-        const easeInOutCubic = (t: number) => t < 0.5 ? 4 * t * t * t : (t - 1) * (2 * t - 2) * (2 * t - 2) + 1;
-        const easedProgress = easeInOutCubic(progress);
+        // Optimized easing function that finishes faster at the end
+        const easeOutQuart = (t: number) => 1 - Math.pow(1 - t, 4);
+        const easedProgress = easeOutQuart(progress);
         
         // Interpolate camera position
         const currentPosition = {
@@ -136,29 +161,54 @@ export const Scene3D: React.FC<Scene3DProps> = ({
           z: startPosition.z + (newCameraPosition.z - startPosition.z) * easedProgress
         };
         
-        // Use controls methods to set position if available, otherwise set directly
-        if (controlsMethodsRef.current) {
-          controlsMethodsRef.current.setPosition(currentPosition);
-        } else {
-          camera.position.set(currentPosition.x, currentPosition.y, currentPosition.z);
-          camera.updateProjectionMatrix();
-        }
+        // Set camera position directly during animation (OrbitControls are disabled)
+        camera.position.set(currentPosition.x, currentPosition.y, currentPosition.z);
+        camera.lookAt(targetPosition.x, targetPosition.y, targetPosition.z);
+        camera.updateProjectionMatrix();
         
-        if (progress < 1) {
-          requestAnimationFrame(animate);
+        // Calculate remaining distance to target for early termination
+        const remainingDistance = Math.sqrt(
+          Math.pow(newCameraPosition.x - currentPosition.x, 2) +
+          Math.pow(newCameraPosition.y - currentPosition.y, 2) +
+          Math.pow(newCameraPosition.z - currentPosition.z, 2)
+        );
+        
+        // End animation early if movement becomes imperceptible (< 0.5 units) or progress complete
+        if (progress < 1 && remainingDistance > 0.5) {
+          animationRef.current.animationId = requestAnimationFrame(animate);
         } else {
-          // Animation complete, notify parent
-          onCameraUpdate({ 
-            x: camera.position.x, 
-            y: camera.position.y, 
-            z: camera.position.z 
-          });
+          // Animation complete, mark as finished
+          animationRef.current.isAnimating = false;
+          animationRef.current.animationId = undefined;
+          animationRef.current.isPresetAnimation = false; // Reset preset animation flag
+          setIsAnimating(false);
+          onAnimationStateChange?.(false);
+          
+          // Set final position and let controls handle the rest
+          camera.position.set(newCameraPosition.x, newCameraPosition.y, newCameraPosition.z);
+          camera.lookAt(targetPosition.x, targetPosition.y, targetPosition.z);
+          camera.updateProjectionMatrix();
+          
+          // Don't call onCameraUpdate here - let the camera tracker handle it after controls are re-enabled
         }
       };
       
+      // Start animation - ONLY call animate() once!
       animate();
+      
+      // Cleanup function to cancel animation if component unmounts or preset changes
+      return () => {
+        if (animationRef.current.animationId) {
+          cancelAnimationFrame(animationRef.current.animationId);
+          animationRef.current.isAnimating = false;
+          animationRef.current.animationId = undefined;
+          animationRef.current.isPresetAnimation = false; // Reset preset animation flag
+          setIsAnimating(false);
+          onAnimationStateChange?.(false);
+        }
+      };
     }
-  }, [currentPreset, geometry.workspaceBounds, machineSettings, cameraTarget, machineOrientation, camera, onCameraUpdate]);
+  }, [currentPreset, geometry.workspaceBounds, machineSettings.machineOrientation, cameraTarget, camera, onCameraUpdate, onAnimationStateChange]);
 
   // Handlers
   const handleControlsReady = useCallback((controls: { setPosition: (position: Position3D) => void }) => {
@@ -167,6 +217,26 @@ export const Scene3D: React.FC<Scene3DProps> = ({
       onControlsReady();
     }
   }, [onControlsReady]);
+
+  // Handle manual camera change - cancel preset animations when user starts manual interaction
+  const handleManualCameraChange = useCallback(() => {
+    console.log('Manual camera change detected, animation state:', animationRef.current); // Debug log
+    
+    // Only cancel if this is a preset animation (not other types of camera changes)
+    if (animationRef.current.animationId && animationRef.current.isPresetAnimation) {
+      console.log('Cancelling preset animation due to manual interaction'); // Debug log
+      cancelAnimationFrame(animationRef.current.animationId);
+      animationRef.current.isAnimating = false;
+      animationRef.current.animationId = undefined;
+      animationRef.current.isPresetAnimation = false;
+      setIsAnimating(false);
+      onAnimationStateChange?.(false);
+    }
+    
+    if (onManualCameraChange) {
+      onManualCameraChange();
+    }
+  }, [onManualCameraChange, onAnimationStateChange]);
 
   return (
     <>
@@ -262,14 +332,18 @@ export const Scene3D: React.FC<Scene3DProps> = ({
         <WorkspaceBoundsVisualization workspaceBounds={geometry.workspaceBounds} />
 
         {/* Camera tracker for position updates */}
-        {onCameraUpdate && <CameraTracker onCameraUpdate={onCameraUpdate} />}
+        {onCameraUpdate && <CameraTracker onCameraUpdate={onCameraUpdate} isAnimating={isAnimating} />}
       </group>
 
       {/* Enhanced Controls - outside the rotated workspace group */}
       <EnhancedOrbitControls 
         target={cameraTarget}
         machineSettings={machineSettings}
+        enabled={!isAnimating} // Disable controls during animation
+        isAnimating={isAnimating} // Pass animation state
         onControlsReady={handleControlsReady}
+        onCameraChange={onCameraUpdate}
+        onManualCameraChange={handleManualCameraChange}
       />
     </>
   );

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect } from 'react';
+import React from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,79 +11,51 @@ import {
   DrawerTrigger
 } from "@/components/ui/drawer";
 import { Box, MapPin, List, Settings } from "lucide-react";
-import type { ProbeOperation, MachineSettings, ProbeSequenceSettings } from '@/types/machine';
+import type { ProbeOperation, MachineSettings, ProbeSequenceSettings, AxisConfig } from '@/types/machine';
+import { useVisualizationWithStore, useVisualizationControls } from '@/store';
 import Machine3DVisualization from './Machine3DVisualization';
 import StockControls from './StockControls';
 import ProbeControls from './ProbeControls';
 import MachineSettingsForm from './MachineSettings';
 
-// Type definitions
-interface AxisConfig {
-  label: string;
-  positiveDirection: string;
-  negativeDirection: string;
-  polarity: 1 | -1;
-  min: number;
-  max: number;
-}
-
 interface SequenceVisualizationProps {
-  probeSequence: ProbeOperation[];
-  machineSettings: MachineSettings;
+  // These props are now optional - component will use store if not provided
+  probeSequence?: ProbeOperation[];
+  machineSettings?: MachineSettings;
   probeSequenceSettings?: ProbeSequenceSettings;
-  setMachineSettings: React.Dispatch<React.SetStateAction<MachineSettings>>;
-  updateAxisConfig: (axis: 'X' | 'Y' | 'Z', field: keyof AxisConfig, value: AxisConfig[keyof AxisConfig]) => void;
+  setMachineSettings?: React.Dispatch<React.SetStateAction<MachineSettings>>;
+  updateAxisConfig?: (axis: 'X' | 'Y' | 'Z', field: keyof AxisConfig, value: AxisConfig[keyof AxisConfig]) => void;
 }
 
 const SequenceVisualization: React.FC<SequenceVisualizationProps> = ({ 
-  probeSequence, 
-  machineSettings, 
-  probeSequenceSettings,
-  setMachineSettings,
-  updateAxisConfig
+  probeSequence: propProbeSequence, 
+  machineSettings: propMachineSettings, 
+  probeSequenceSettings: propProbeSequenceSettings,
+  setMachineSettings: propSetMachineSettings,
+  updateAxisConfig: propUpdateAxisConfig
 }) => {
-  // State for stock controls
-  const [stockSize, setStockSize] = useState<[number, number, number]>([25, 25, 10]);
-  
-  // State for probe position controls
-  const [probePosition, setProbePosition] = useState<{X: number, Y: number, Z: number}>(() => {
-    return probeSequenceSettings?.initialPosition || { X: 0, Y: 0, Z: 0 };
-  });
-  
-  const [stockPosition, setStockPosition] = useState<[number, number, number]>(() => {
-    // Start with a default position that works for both orientations
-    // For vertical: absolute world coordinates
-    // For horizontal: relative to stage position (will be offset in 3D view)
-    return [0, 0, 5]; // Simple centered position relative to reference point
-  });
+  // Use store values as fallback
+  const storeData = useVisualizationWithStore();
+  const visualizationControls = useVisualizationControls();
 
-  const handleStockSizeChange = useCallback((size: [number, number, number]) => {
-    setStockSize(size);
-  }, []);
-  const handleStockPositionChange = useCallback((position: [number, number, number]) => {
-    setStockPosition(position);
-  }, []);
-  
-  const handleProbePositionChange = useCallback((position: {X: number, Y: number, Z: number}) => {
-    setProbePosition(position);
-  }, []);
-  
-  // Sync probe position when probeSequenceSettings changes (e.g., from imports)
-  useEffect(() => {
-    if (probeSequenceSettings?.initialPosition) {
-      setProbePosition(probeSequenceSettings.initialPosition);
-    }
-  }, [probeSequenceSettings?.initialPosition]);
+  // Use props if provided, otherwise fall back to store
+  const probeSequence = propProbeSequence ?? storeData.probeSequence;
+  const machineSettings = propMachineSettings ?? storeData.machineSettings;
+  const probeSequenceSettings = propProbeSequenceSettings ?? storeData.probeSequenceSettings;
+  const setMachineSettings = propSetMachineSettings ?? storeData.setMachineSettings;
+  const updateAxisConfig = propUpdateAxisConfig ?? storeData.updateAxisConfig;
 
-  // Create modified probe sequence settings with updated position using useMemo
-  const modifiedProbeSequenceSettings = useMemo(() => {
-    if (!probeSequenceSettings) return undefined;
-    
-    return {
-      ...probeSequenceSettings,
-      initialPosition: probePosition
-    };
-  }, [probeSequenceSettings, probePosition]);
+  // Use store for visualization controls
+  const {
+    stockSize,
+    stockPosition,
+    probePosition,
+    updateStockSize,
+    updateStockPosition,
+    updateProbePosition
+  } = visualizationControls;
+
+  // Use probe position directly from store - no need for additional variable
   return (
     <div className="flex flex-col h-[calc(100vh-130px)]">
       {/* 3D Visualization with floating controls - fills remaining height */}
@@ -97,11 +69,11 @@ const SequenceVisualization: React.FC<SequenceVisualizationProps> = ({
             <div className="h-full">
               <Machine3DVisualization 
                 machineSettings={machineSettings}
-                probeSequence={modifiedProbeSequenceSettings}
+                probeSequence={probeSequenceSettings}
                 stockSize={stockSize}
                 stockPosition={stockPosition}
-                onStockSizeChange={handleStockSizeChange}
-                onStockPositionChange={handleStockPositionChange}
+                onStockSizeChange={updateStockSize}
+                onStockPositionChange={updateStockPosition}
                 showAxisLabels={true}
                 showCoordinateHover={true}
                 height="100%"
@@ -152,8 +124,8 @@ const SequenceVisualization: React.FC<SequenceVisualizationProps> = ({
                     <StockControls
                       stockSize={stockSize}
                       stockPosition={stockPosition}
-                      onStockSizeChange={handleStockSizeChange}
-                      onStockPositionChange={handleStockPositionChange}
+                      onStockSizeChange={updateStockSize}
+                      onStockPositionChange={updateStockPosition}
                       units={machineSettings.units}
                       machineSettings={machineSettings}
                     />
@@ -178,7 +150,7 @@ const SequenceVisualization: React.FC<SequenceVisualizationProps> = ({
                   <div className="px-4 pb-4 max-h-[70vh] overflow-y-auto">
                     <ProbeControls
                       probePosition={probePosition}
-                      onProbePositionChange={handleProbePositionChange}
+                      onProbePositionChange={updateProbePosition}
                       units={machineSettings.units}
                       machineSettings={machineSettings}
                       stockSize={stockSize}

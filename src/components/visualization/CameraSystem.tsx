@@ -11,7 +11,11 @@ import { CAMERA_PRESETS } from '@/utils/visualization/cameraPresets';
 export interface EnhancedOrbitControlsProps {
   target: Position3D;
   machineSettings: MachineSettings;
+  enabled?: boolean; // Add enabled prop to disable controls during animation
+  isAnimating?: boolean; // Add this to know when we're in animation
   onControlsReady?: (controls: { setPosition: (position: Position3D) => void }) => void;
+  onCameraChange?: (position: { x: number; y: number; z: number }) => void;
+  onManualCameraChange?: () => void; // Called when user manually moves camera
 }
 
 /**
@@ -20,18 +24,26 @@ export interface EnhancedOrbitControlsProps {
 export const EnhancedOrbitControls = React.forwardRef<OrbitControlsImpl, EnhancedOrbitControlsProps>(({
   target,
   machineSettings,
-  onControlsReady
+  enabled = true, // Default to enabled
+  isAnimating = false, // Default to not animating
+  onControlsReady,
+  onCameraChange,
+  onManualCameraChange
 }, ref) => {
   const { camera } = useThree();
   const internalControlsRef = useRef<OrbitControlsImpl>(null);
-  
-  // Use the passed ref or internal ref
   const controlsRef = (ref as React.MutableRefObject<OrbitControlsImpl>) || internalControlsRef;
-  
-  // Extract machine orientation from machine settings
+  const enabledTimeRef = useRef(Date.now());
+
+  // Track when controls are enabled/disabled
+  React.useEffect(() => {
+    if (enabled) {
+      enabledTimeRef.current = Date.now();
+    }
+  }, [enabled]);
+
   const machineOrientation = machineSettings.machineOrientation;
-  
-  // Calculate dynamic max distance based on machine workspace
+
   const maxDistance = useMemo(() => {
     const { X, Y, Z } = machineSettings.axes;
     const maxDimension = Math.max(
@@ -39,44 +51,116 @@ export const EnhancedOrbitControls = React.forwardRef<OrbitControlsImpl, Enhance
       Math.abs(Y.max - Y.min),
       Math.abs(Z.max - Z.min)
     );
-    return maxDimension * 1.25;
+    return maxDimension * 2.0; // Increased from 1.25 to 2.0 to accommodate preset distances
   }, [machineSettings.axes]);
 
   useEffect(() => {
-    if (controlsRef.current) {
-      controlsRef.current.target.set(target.x, target.y, target.z);
-      
-      // Set camera up vector based on machine orientation
-      const config = MACHINE_ORIENTATION_CONFIGS[machineOrientation];
-      const upVector = config.upVector as [number, number, number];
-      camera.up.set(...upVector);
-      
-      controlsRef.current.update();
-    }
-    
+    const controls = controlsRef.current;
+    if (!controls) return;
+
+    // Set up initial camera state and update when target changes
+    controls.target.set(target.x, target.y, target.z);
+    const config = MACHINE_ORIENTATION_CONFIGS[machineOrientation];
+    camera.up.set(...(config.upVector as [number, number, number]));
+    controls.update();
+
     // Notify parent that controls are ready
-    if (onControlsReady) {
-      onControlsReady({
-        setPosition: (position: Position3D) => {
-          if (controlsRef.current) {
-            camera.position.set(position.x, position.y, position.z);
-            camera.updateProjectionMatrix();
-            controlsRef.current.update();
-          }
+    onControlsReady?.({
+      setPosition: (position: Position3D) => {
+        camera.position.set(position.x, position.y, position.z);
+        camera.updateProjectionMatrix();
+        // Update the target to ensure controls are synced
+        controls.target.set(target.x, target.y, target.z);
+        controls.update();
+      }
+    });
+  }, [target, onControlsReady, machineOrientation, camera, controlsRef]);
+
+  useEffect(() => {
+    const controls = controlsRef.current;
+    if (!controls) return;
+
+    let isUserInteracting = false;
+    let lastCameraDistance = 0;
+    let throttleTimeout: NodeJS.Timeout | null = null;
+
+    // Initialize camera distance tracking
+    const initDistance = () => {
+      lastCameraDistance = Math.sqrt(
+        Math.pow(camera.position.x - target.x, 2) +
+        Math.pow(camera.position.y - target.y, 2) +
+        Math.pow(camera.position.z - target.z, 2)
+      );
+    };
+    initDistance();
+
+    const handleStart = () => {
+      isUserInteracting = true;
+    };
+
+    const handleEnd = () => {
+      isUserInteracting = false;
+    };
+
+    const handleChange = () => {
+      // Throttle change events to prevent excessive updates
+      if (throttleTimeout) {
+        clearTimeout(throttleTimeout);
+      }
+      
+      throttleTimeout = setTimeout(() => {
+        onCameraChange?.({
+          x: camera.position.x,
+          y: camera.position.y,
+          z: camera.position.z
+        });
+
+        // IMPORTANT: Only trigger manual change during actual user interactions
+        // Skip all manual change detection if we're currently animating
+        if (isAnimating) {
+          return; // Exit early - no manual change detection during animation
         }
-      });
-    }
-  }, [target, onControlsReady, machineSettings.machineOrientation, camera, controlsRef]);
-  
+
+        // Check if zoom/distance changed (manual zoom without drag)
+        const currentDistance = Math.sqrt(
+          Math.pow(camera.position.x - target.x, 2) +
+          Math.pow(camera.position.y - target.y, 2) +
+          Math.pow(camera.position.z - target.z, 2)
+        );
+        
+        const distanceChanged = Math.abs(currentDistance - lastCameraDistance) > 0.1;
+        lastCameraDistance = currentDistance;
+
+        // Only trigger manual change for user interactions
+        if (isUserInteracting || distanceChanged) {
+          onManualCameraChange?.();
+        }
+      }, 16); // ~60fps throttling
+    };
+
+    controls.addEventListener('start', handleStart);
+    controls.addEventListener('end', handleEnd);
+    controls.addEventListener('change', handleChange);
+
+    return () => {
+      controls.removeEventListener('start', handleStart);
+      controls.removeEventListener('end', handleEnd);
+      controls.removeEventListener('change', handleChange);
+      if (throttleTimeout) {
+        clearTimeout(throttleTimeout);
+      }
+    };
+  }, [camera, controlsRef, onCameraChange, onManualCameraChange, target, isAnimating]);
+
   return (
-    <OrbitControls 
+    <OrbitControls
       ref={controlsRef}
       target={[target.x, target.y, target.z]}
-      enablePan={true}
-      enableZoom={true}
-      enableRotate={true}
-      enableDamping={true}
-      dampingFactor={0.05}
+      enabled={enabled} // Use the enabled prop
+      enablePan={enabled}
+      enableZoom={enabled}
+      enableRotate={enabled}
+      enableDamping={false}
       maxPolarAngle={Math.PI}
       minDistance={5}
       maxDistance={maxDistance}
@@ -223,23 +307,47 @@ export const CameraCoordinateDisplay: React.FC<CameraCoordinateDisplayProps> = (
 
 export interface CameraTrackerProps {
   onCameraUpdate: (position: { x: number; y: number; z: number }) => void;
+  isAnimating?: boolean; // Add flag to prevent updates during animations
 }
 
 /**
  * Camera tracker component (renders inside Canvas to access camera)
  */
 export const CameraTracker: React.FC<CameraTrackerProps> = ({
-  onCameraUpdate
+  onCameraUpdate,
+  isAnimating = false
 }) => {
   const { camera } = useThree();
+  const lastPositionRef = useRef({ x: 0, y: 0, z: 0 });
+  const frameCountRef = useRef(0);
   
   useFrame(() => {
-    // Update camera position every frame
-    onCameraUpdate({
+    // Skip updates during animations to prevent conflicts
+    if (isAnimating) return;
+    
+    // No delay after animation - allow immediate updates for responsive manual control
+    
+    // Throttle updates - only update every 5 frames for better responsiveness
+    frameCountRef.current++;
+    if (frameCountRef.current % 5 !== 0) return;
+    
+    const currentPosition = {
       x: camera.position.x,
       y: camera.position.y,
       z: camera.position.z
-    });
+    };
+    
+    // Only update if position actually changed significantly (avoid micro-movements)
+    const tolerance = 0.1;
+    const hasChanged = 
+      Math.abs(currentPosition.x - lastPositionRef.current.x) > tolerance ||
+      Math.abs(currentPosition.y - lastPositionRef.current.y) > tolerance ||
+      Math.abs(currentPosition.z - lastPositionRef.current.z) > tolerance;
+    
+    if (hasChanged) {
+      lastPositionRef.current = currentPosition;
+      onCameraUpdate(currentPosition);
+    }
   });
   
   return null; // This component doesn't render anything

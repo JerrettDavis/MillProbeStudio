@@ -21,18 +21,8 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Settings, ChevronDown, ChevronRight } from "lucide-react";
-import type { ProbeOperation, MovementStep, ProbeSequenceSettings, MachineSettings } from '@/types/machine';
+import type { ProbeOperation, MovementStep, ProbeSequenceSettings, MachineSettings, AxisConfig } from '@/types/machine';
 import MachineSettingsForm from './MachineSettings';
-
-// Type definitions
-interface AxisConfig {
-  label: string;
-  positiveDirection: string;
-  negativeDirection: string;
-  polarity: 1 | -1;
-  min: number;
-  max: number;
-}
 
 interface ProbeSequenceProps {
     // Data passed in
@@ -98,17 +88,23 @@ const ProbeSequenceEditor: React.FC<ProbeSequenceProps> = ({
 
     // Initialize collapsible state for new probe operations
     useEffect(() => {
-        const newState = { ...collapsibleState };
-        probeSequence.forEach(probe => {
-            if (!newState[probe.id]) {
-                newState[probe.id] = {
-                    probing: true,  // Operation Probing Settings open by default
-                    preMoves: false, // Pre-Probe Movements closed by default
-                    postMoves: false // Post-Probe Movements closed by default
-                };
-            }
+        setCollapsibleState(prev => {
+            const newState = { ...prev };
+            let hasChanges = false;
+            
+            probeSequence.forEach(probe => {
+                if (!newState[probe.id]) {
+                    newState[probe.id] = {
+                        probing: true,  // Operation Probing Settings open by default
+                        preMoves: false, // Pre-Probe Movements closed by default
+                        postMoves: false // Post-Probe Movements closed by default
+                    };
+                    hasChanges = true;
+                }
+            });
+            
+            return hasChanges ? newState : prev;
         });
-        setCollapsibleState(newState);
     }, [probeSequence]);
 
     // Helper function to toggle collapsible state

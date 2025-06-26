@@ -4,7 +4,8 @@ import { ResizablePanelGroup, ResizablePanel } from '@/components/ui/resizable';
 import { Scene3D } from './visualization/Scene3D';
 import { CameraPresets, CameraCoordinateDisplay } from './visualization/CameraSystem';
 import { useMachineGeometry } from '@/hooks/visualization/useMachineGeometry';
-import { calculateInitialCameraPosition, type CameraPreset } from '@/utils/visualization/cameraPresets';
+import { calculateInitialCameraPosition } from '@/utils/visualization/cameraPresets';
+import { useCameraControlsWithStore } from '@/store/hooks';
 import type { MachineSettings, ProbeSequenceSettings } from '@/types/machine';
 
 export interface Machine3DVisualizationProps {
@@ -33,10 +34,16 @@ const Machine3DVisualization: React.FC<Machine3DVisualizationProps> = ({
   showAxisLabels = true,
   showCoordinateHover = true
 }) => {
-  // Use props directly instead of centralized state management
-  const [currentPreset, setCurrentPreset] = React.useState<CameraPreset>('home');
-  const [cameraPosition, setCameraPosition] = React.useState({ x: 0, y: 0, z: 0 });
-  const [pivotMode, setPivotMode] = React.useState<'tool' | 'origin'>('tool');
+  // Use store for camera state management
+  const {
+    cameraPosition,
+    currentPreset,
+    pivotMode,
+    updateCameraPosition,
+    updateCameraPreset,
+    updatePivotMode,
+    clearCameraPreset
+  } = useCameraControlsWithStore();
 
   // Calculate machine geometry with memoization using props directly
   const geometry = useMachineGeometry({
@@ -46,15 +53,31 @@ const Machine3DVisualization: React.FC<Machine3DVisualizationProps> = ({
     stockPosition: providedStockPosition || [0, 0, 0]
   });
 
-  // Calculate initial camera position
+  // Calculate initial camera position (used only if no stored position)
   const initialCameraPosition = React.useMemo(() => {
+    // Use stored camera position if available, otherwise calculate initial
+    if (cameraPosition.x !== 0 || cameraPosition.y !== 0 || cameraPosition.z !== 0) {
+      return [cameraPosition.x, cameraPosition.y, cameraPosition.z] as [number, number, number];
+    }
     const pos = calculateInitialCameraPosition(machineSettings, machineSettings.machineOrientation);
     return [pos.x, pos.y, pos.z] as [number, number, number];
-  }, [machineSettings]);
+  }, [machineSettings, cameraPosition]);
 
   // Handlers
   const handleControlsReady = useCallback(() => {
     // Camera controls are ready
+  }, []);
+
+  const handleCameraUpdate = useCallback((position: { x: number; y: number; z: number }) => {
+    updateCameraPosition(position);
+  }, [updateCameraPosition]);
+
+  const handleManualCameraChange = useCallback(() => {
+    clearCameraPreset();
+  }, [clearCameraPreset]);
+
+  const handleAnimationStateChange = useCallback((_animating: boolean) => {
+    // Animation state is handled in Scene3D
   }, []);
 
   return (
@@ -67,17 +90,17 @@ const Machine3DVisualization: React.FC<Machine3DVisualizationProps> = ({
         <div className="w-full h-full relative">
           {/* Camera Controls */}
           <CameraPresets 
-            onPresetSelect={setCurrentPreset}
-            currentPreset={currentPreset}
+            onPresetSelect={updateCameraPreset}
+            currentPreset={currentPreset || undefined}
             pivotMode={pivotMode}
-            onPivotModeChange={setPivotMode}
+            onPivotModeChange={updatePivotMode}
           />
           
           {/* 3D Canvas */}
           <Canvas
             camera={{ 
               position: initialCameraPosition,
-              fov: 60,
+              fov: 75,
               near: 0.1,
               far: 1000
             }}
@@ -91,9 +114,11 @@ const Machine3DVisualization: React.FC<Machine3DVisualizationProps> = ({
               stockPosition={providedStockPosition || [0, 0, 0]}
               showAxisLabels={showAxisLabels}
               showCoordinateHover={showCoordinateHover}
-              currentPreset={currentPreset}
-              onCameraUpdate={setCameraPosition}
+              currentPreset={currentPreset || undefined}
+              onCameraUpdate={handleCameraUpdate}
               onControlsReady={handleControlsReady}
+              onManualCameraChange={handleManualCameraChange}
+              onAnimationStateChange={handleAnimationStateChange}
               pivotMode={pivotMode}
             />
           </Canvas>
