@@ -76,7 +76,7 @@ const Machine3DVisualization: React.FC<Machine3DVisualizationProps> = ({
     clearCameraPreset();
   }, [clearCameraPreset]);
 
-  const handleAnimationStateChange = useCallback((_animating: boolean) => {
+  const handleAnimationStateChange = useCallback(() => {
     // Animation state is handled in Scene3D
   }, []);
 

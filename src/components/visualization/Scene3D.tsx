@@ -208,7 +208,7 @@ export const Scene3D: React.FC<Scene3DProps> = ({
         }
       };
     }
-  }, [currentPreset, geometry.workspaceBounds, machineSettings.machineOrientation, cameraTarget, camera, onCameraUpdate, onAnimationStateChange]);
+  }, [currentPreset, geometry.workspaceBounds, machineSettings.machineOrientation, cameraTarget, camera, onCameraUpdate, onAnimationStateChange, machineOrientation, machineSettings]);
 
   // Handlers
   const handleControlsReady = useCallback((controls: { setPosition: (position: Position3D) => void }) => {
