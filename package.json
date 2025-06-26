@@ -1,8 +1,24 @@
 {
-  "name": "mill-probe-stage",
+  "name": "mill-probe-studio",
   "private": true,
   "version": "0.0.1",
   "type": "module",
+  "description": "A modern web application for creating, managing, and visualizing CNC mill probe sequences with intelligent G-code generation",
+  "keywords": ["cnc", "gcode", "mill", "probe", "machining", "typescript", "react", "3d-visualization"],
+  "homepage": "https://jerrettdavis.github.io/MillProbeStudio/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JerrettDavis/MillProbeStudio.git"
+  },
+  "bugs": {
+    "url": "https://github.com/JerrettDavis/MillProbeStudio/issues"
+  },
+  "author": {
+    "name": "JDH Productions LLC",
+    "email": "jd@jdhpro.com",
+    "url": "https://jdhpro.com"
+  },
+  "license": "SEE LICENSE IN LICENSE.md",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
