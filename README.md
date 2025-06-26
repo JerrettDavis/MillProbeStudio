@@ -1,7 +1,7 @@
 # Mill Probe Studio
 
 [![codecov](https://codecov.io/gh/JerrettDavis/MillProbeStudio/graph/badge.svg?token=U1R3CDU1B0)](https://codecov.io/gh/JerrettDavis/MillProbeStudio)
-[![CI/CD](https://github.com/JerrettDavis/MillProbeStudio/workflows/CI%2FCD/badge.svg)](https://github.com/JerrettDavis/MillProbeStudio/actions)
+[![CI/CD Pipeline](https://github.com/JerrettDavis/MillProbeStudio/actions/workflows/ci-cd.yml/badge.svg?branch=main)](https://github.com/JerrettDavis/MillProbeStudio/actions/workflows/ci-cd.yml)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue.svg)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-19-blue.svg)](https://reactjs.org/)
 [![License](https://img.shields.io/badge/License-PolyForm%20Noncommercial-blue.svg)](LICENSE.md)
