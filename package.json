@@ -4,7 +4,16 @@
   "version": "0.0.1",
   "type": "module",
   "description": "A modern web application for creating, managing, and visualizing CNC mill probe sequences with intelligent G-code generation",
-  "keywords": ["cnc", "gcode", "mill", "probe", "machining", "typescript", "react", "3d-visualization"],
+  "keywords": [
+    "cnc",
+    "gcode",
+    "mill",
+    "probe",
+    "machining",
+    "typescript",
+    "react",
+    "3d-visualization"
+  ],
   "homepage": "https://jerrettdavis.github.io/MillProbeStudio/",
   "repository": {
     "type": "git",
@@ -30,6 +39,7 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:coverage:watch": "vitest --coverage",
+    "test:report:junit": "vitest --reporter=junit --outputFile=test-report.junit.xml",
     "test:coverage:ui": "vitest --ui --coverage",
     "coverage:open": "start coverage/index.html",
     "coverage:clean": "rimraf coverage",
@@ -63,6 +73,7 @@
     "vaul": "^1.1.2"
   },
   "devDependencies": {
+    "@codecov/vite-plugin": "^1.9.1",
     "@commitlint/cli": "^19.6.0",
     "@commitlint/config-conventional": "^19.6.0",
     "@eslint/js": "^9.25.0",

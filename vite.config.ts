@@ -3,10 +3,20 @@ import tailwindcss from "@tailwindcss/vite"
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tsconfigPaths from 'vite-tsconfig-paths';
+import { codecovVitePlugin } from "@codecov/vite-plugin";
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss(), tsconfigPaths()],
+  plugins: [
+    react(), 
+    tailwindcss(), 
+    tsconfigPaths(),
+    codecovVitePlugin({
+      enableBundleAnalysis: process.env.CODECOV_TOKEN !== undefined,
+      bundleName: "<bundle project name>",
+      uploadToken: process.env.CODECOV_TOKEN,
+    })
+  ],
   base: process.env.NODE_ENV === 'production' ? '/MillProbeStudio/' : '/',
   resolve: {
     alias: {
