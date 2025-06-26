@@ -1,10 +1,19 @@
 {
   "name": "mill-probe-studio",
   "private": true,
-  "version": "0.0.1",
+  "version": "1.0.0",
   "type": "module",
   "description": "A modern web application for creating, managing, and visualizing CNC mill probe sequences with intelligent G-code generation",
-  "keywords": ["cnc", "gcode", "mill", "probe", "machining", "typescript", "react", "3d-visualization"],
+  "keywords": [
+    "cnc",
+    "gcode",
+    "mill",
+    "probe",
+    "machining",
+    "typescript",
+    "react",
+    "3d-visualization"
+  ],
   "homepage": "https://jerrettdavis.github.io/MillProbeStudio/",
   "repository": {
     "type": "git",
@@ -57,6 +66,7 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-resizable-panels": "^3.0.3",
+    "rollup": "^4.44.0",
     "tailwind-merge": "^3.3.1",
     "tailwindcss": "^4.1.10",
     "three": "^0.177.0",
