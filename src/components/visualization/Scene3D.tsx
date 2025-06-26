@@ -196,13 +196,15 @@ export const Scene3D: React.FC<Scene3DProps> = ({
       // Start animation - ONLY call animate() once!
       animate();
       
+      // Capture the current ref value for cleanup
+      const animationState = animationRef.current;
       // Cleanup function to cancel animation if component unmounts or preset changes
       return () => {
-        if (animationRef.current.animationId) {
-          cancelAnimationFrame(animationRef.current.animationId);
-          animationRef.current.isAnimating = false;
-          animationRef.current.animationId = undefined;
-          animationRef.current.isPresetAnimation = false; // Reset preset animation flag
+        if (animationState.animationId) {
+          cancelAnimationFrame(animationState.animationId);
+          animationState.isAnimating = false;
+          animationState.animationId = undefined;
+          animationState.isPresetAnimation = false; // Reset preset animation flag
           setIsAnimating(false);
           onAnimationStateChange?.(false);
         }
