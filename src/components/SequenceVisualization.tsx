@@ -74,7 +74,7 @@ const SequenceVisualization: React.FC<SequenceVisualizationProps> = ({
     };
   }, [probeSequenceSettings, probePosition]);
   return (
-    <div className="flex flex-col h-[calc(100vh-200px)]">
+    <div className="flex flex-col h-[calc(100vh-130px)]">
       {/* 3D Visualization with floating controls - fills remaining height */}
       <div className="flex-1 relative">
         <Card className="h-full flex flex-col">
@@ -82,7 +82,7 @@ const SequenceVisualization: React.FC<SequenceVisualizationProps> = ({
             <CardTitle>3D Visualization</CardTitle>
             <CardDescription>Interactive 3D view of your machine, stock, and probe sequence</CardDescription>
           </CardHeader>
-          <CardContent className="flex-1 relative p-6">
+          <CardContent className="flex-1 relative p-4 pb-6 pt-0">
             <div className="h-full">
               <Machine3DVisualization 
                 machineSettings={machineSettings}
@@ -100,7 +100,7 @@ const SequenceVisualization: React.FC<SequenceVisualizationProps> = ({
             </div>
             
             {/* Floating Control Buttons - Bottom of view */}
-            <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2 flex flex-row gap-2">
+            <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 flex flex-row gap-2 z-10">
               {/* Stock Controls Drawer */}
               <Drawer>
                 <DrawerTrigger asChild>

@@ -48,8 +48,13 @@ export const validators = {
     return num;
   },
 
-  clamp: (value: number, min: number, max: number): number => 
-    Math.max(min, Math.min(max, value)),
+  clamp: (value: number, min: number, max: number): number => {
+    // Handle negative ranges where min and max are both negative
+    // and min is closer to zero than max (e.g., min: -0.5, max: -78.5)
+    const actualMin = Math.min(min, max);
+    const actualMax = Math.max(min, max);
+    return Math.max(actualMin, Math.min(actualMax, value));
+  },
 
   parseFloat: (value: string, fallback = 0): number => 
     parseFloat(value) || fallback,

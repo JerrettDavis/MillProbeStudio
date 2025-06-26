@@ -196,7 +196,7 @@ export const CameraCoordinateDisplay: React.FC<CameraCoordinateDisplayProps> = (
   cameraPosition
 }) => {
   return (
-    <div className="absolute bottom-4 left-4 z-10 bg-gray-800 bg-opacity-90 backdrop-blur-sm rounded-lg p-3 shadow-lg">
+    <div className="absolute bottom-4 left-4 z-10 bg-gray-800 bg-opacity-90 backdrop-blur-sm rounded-lg p-3 shadow-lg -z-10">
       <div className="text-xs text-gray-300 mb-2 font-semibold">Camera Position</div>
       <div className="space-y-1 font-mono text-xs">
         <div className="flex items-center gap-2">

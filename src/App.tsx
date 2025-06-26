@@ -137,7 +137,7 @@ const App = () => {
     <ThemeProvider>
       <div className="min-h-screen p-4">
         <div className="max-w-7xl mx-auto">
-          <h1 className="text-3xl font-bold mb-6">Mill Probe Studio</h1>
+
 
           <Tabs defaultValue="machine" className="space-y-6">
             <TabsList className="grid w-full grid-cols-4">
