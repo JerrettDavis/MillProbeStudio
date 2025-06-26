@@ -1,5 +1,7 @@
 # Mill Probe Studio
 
+[![codecov](https://codecov.io/gh/JerrettDavis/MillProbeStudio/graph/badge.svg?token=U1R3CDU1B0)](https://codecov.io/gh/JerrettDavis/MillProbeStudio)
+
 A React + TypeScript + Vite application for managing CNC mill probe sequences and G-code generation.
 
 ## Features
@@ -63,22 +65,6 @@ npm run coverage:open
 npm run coverage:clean
 ```
 
-### Test Coverage
-
-Current coverage status:
-
-- **Utils**: 98.75% (G-code parser and generator)
-- **Components**: 38.76% (UI components)
-- **Overall**: 46.54%
-
-Coverage thresholds are set at 80% for:
-- Lines
-- Functions  
-- Branches
-- Statements
-
-For detailed coverage information, see [COVERAGE.md](./COVERAGE.md).
-
 ### Project Structure
 
 ```
@@ -104,59 +90,32 @@ src/
 - **Radix UI** - Accessible component primitives
 - **React Testing Library** - Component testing
 
+### Release Management
+
+This project uses [semantic-release](https://semantic-release.gitbook.io/) for automated versioning and changelog generation based on [Conventional Commits](https://conventionalcommits.org/).
+
+```bash
+# Create a release (dry run)
+npm run release:dry-run
+
+# Create a release
+npm run release
+```
+
+**Commit Message Format:**
+- `feat:` - New features (minor version bump)
+- `fix:` - Bug fixes (patch version bump)  
+- `feat!:` or `BREAKING CHANGE:` - Breaking changes (major version bump)
+- `docs:`, `style:`, `refactor:`, `test:`, `chore:` - No version bump
+
+### Deployment
+
+The application is automatically deployed to GitHub Pages when code is pushed to the main branch. The deployment process:
+
+1. Runs all tests and ensures they pass
+2. Builds the production bundle
+3. Deploys to GitHub Pages
+4. Creates releases based on conventional commits
+
 ---
 
-## Original Vite Template Information
-
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
-
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
-
-### Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default tseslint.config({
-  extends: [
-    // Remove ...tseslint.configs.recommended and replace with this
-    ...tseslint.configs.recommendedTypeChecked,
-    // Alternatively, use this for stricter rules
-    ...tseslint.configs.strictTypeChecked,
-    // Optionally, add this for stylistic rules
-    ...tseslint.configs.stylisticTypeChecked,
-  ],
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default tseslint.config({
-  plugins: {
-    // Add the react-x and react-dom plugins
-    'react-x': reactX,
-    'react-dom': reactDom,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended typescript rules
-    ...reactX.configs['recommended-typescript'].rules,
-    ...reactDom.configs.recommended.rules,
-  },
-})
-```
