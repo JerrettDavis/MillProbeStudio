@@ -10,22 +10,37 @@ import {
   DrawerDescription, 
   DrawerTrigger
 } from "@/components/ui/drawer";
-import { Box, MapPin, List } from "lucide-react";
+import { Box, MapPin, List, Settings } from "lucide-react";
 import type { ProbeOperation, MachineSettings, ProbeSequenceSettings } from '@/types/machine';
 import Machine3DVisualization from './Machine3DVisualization';
 import StockControls from './StockControls';
 import ProbeControls from './ProbeControls';
+import MachineSettingsForm from './MachineSettings';
+
+// Type definitions
+interface AxisConfig {
+  label: string;
+  positiveDirection: string;
+  negativeDirection: string;
+  polarity: 1 | -1;
+  min: number;
+  max: number;
+}
 
 interface SequenceVisualizationProps {
   probeSequence: ProbeOperation[];
   machineSettings: MachineSettings;
   probeSequenceSettings?: ProbeSequenceSettings;
+  setMachineSettings: React.Dispatch<React.SetStateAction<MachineSettings>>;
+  updateAxisConfig: (axis: 'X' | 'Y' | 'Z', field: keyof AxisConfig, value: AxisConfig[keyof AxisConfig]) => void;
 }
 
 const SequenceVisualization: React.FC<SequenceVisualizationProps> = ({ 
   probeSequence, 
   machineSettings, 
-  probeSequenceSettings 
+  probeSequenceSettings,
+  setMachineSettings,
+  updateAxisConfig
 }) => {
   // State for stock controls and machine orientation
   const [stockSize, setStockSize] = useState<[number, number, number]>([25, 25, 10]);
@@ -100,13 +115,38 @@ const SequenceVisualization: React.FC<SequenceVisualizationProps> = ({
             </div>
             
             {/* Floating Control Buttons - Bottom of view */}
-            <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 flex flex-row gap-2 z-10">
+            <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 flex flex-row gap-1 sm:gap-2 z-10">
+              {/* Machine Settings Drawer */}
+              <Drawer>
+                <DrawerTrigger asChild>
+                  <Button variant="outline" size="sm" className="shadow-lg backdrop-blur-sm bg-white/90 text-xs sm:text-sm px-2 sm:px-3">
+                    <Settings className="w-4 h-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Machine Settings</span>
+                    <span className="sm:hidden">Machine</span>
+                  </Button>
+                </DrawerTrigger>
+                <DrawerContent>
+                  <DrawerHeader>
+                    <DrawerTitle>Machine Settings</DrawerTitle>
+                    <DrawerDescription>Configure your CNC machine parameters and axis settings</DrawerDescription>
+                  </DrawerHeader>
+                  <div className="px-4 pb-4 max-h-[70vh] overflow-y-auto">
+                    <MachineSettingsForm
+                      machineSettings={machineSettings}
+                      setMachineSettings={setMachineSettings}
+                      updateAxisConfig={updateAxisConfig}
+                    />
+                  </div>
+                </DrawerContent>
+              </Drawer>
+
               {/* Stock Controls Drawer */}
               <Drawer>
                 <DrawerTrigger asChild>
-                  <Button variant="outline" size="sm" className="shadow-lg backdrop-blur-sm bg-white/90">
-                    <Box className="w-4 h-4 mr-2" />
-                    Stock Controls
+                  <Button variant="outline" size="sm" className="shadow-lg backdrop-blur-sm bg-white/90 text-xs sm:text-sm px-2 sm:px-3">
+                    <Box className="w-4 h-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Stock Controls</span>
+                    <span className="sm:hidden">Stock</span>
                   </Button>
                 </DrawerTrigger>
                 <DrawerContent>
@@ -134,9 +174,10 @@ const SequenceVisualization: React.FC<SequenceVisualizationProps> = ({
               {/* Probe Position Drawer */}
               <Drawer>
                 <DrawerTrigger asChild>
-                  <Button variant="outline" size="sm" className="shadow-lg backdrop-blur-sm bg-white/90">
-                    <MapPin className="w-4 h-4 mr-2" />
-                    Probe Position
+                  <Button variant="outline" size="sm" className="shadow-lg backdrop-blur-sm bg-white/90 text-xs sm:text-sm px-2 sm:px-3">
+                    <MapPin className="w-4 h-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Probe Position</span>
+                    <span className="sm:hidden">Probe</span>
                   </Button>
                 </DrawerTrigger>
                 <DrawerContent>
@@ -162,9 +203,10 @@ const SequenceVisualization: React.FC<SequenceVisualizationProps> = ({
               {/* Sequence Details Drawer */}
               <Drawer>
                 <DrawerTrigger asChild>
-                  <Button variant="outline" size="sm" className="shadow-lg backdrop-blur-sm bg-white/90">
-                    <List className="w-4 h-4 mr-2" />
-                    Sequence Details
+                  <Button variant="outline" size="sm" className="shadow-lg backdrop-blur-sm bg-white/90 text-xs sm:text-sm px-2 sm:px-3">
+                    <List className="w-4 h-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Sequence Details</span>
+                    <span className="sm:hidden">Sequence</span>
                   </Button>
                 </DrawerTrigger>
                 <DrawerContent>

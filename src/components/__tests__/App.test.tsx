@@ -9,29 +9,6 @@ vi.mock('@/utils/gcodeGenerator', () => ({
   generateGCode: vi.fn(() => 'G0 X0 Y0 Z0\nM30')
 }));
 
-// Simple mock for MachineSettings
-vi.mock('../MachineSettings', () => ({
-  default: ({ setMachineSettings }: { setMachineSettings?: (settings: any) => void }) => {
-    return (
-      <div data-testid="machine-settings">
-        <button 
-          data-testid="update-settings" 
-          onClick={() => setMachineSettings?.({ 
-            units: 'mm',
-            axes: {
-              X: { positiveDirection: 'Down', negativeDirection: 'Up', polarity: 1, min: -86, max: -0.5 },
-              Y: { positiveDirection: 'Right', negativeDirection: 'Left', polarity: 1, min: -0.5, max: -241.50 },
-              Z: { positiveDirection: 'In', negativeDirection: 'Out', polarity: -1, min: -0.5, max: -78.50 }
-            }
-          })}
-        >
-          Update Settings
-        </button>
-      </div>
-    );
-  }
-}));
-
 // Simple mock for ProbeSequence
 vi.mock('../ProbeSequence', () => ({
   default: ({ onProbeSequenceChange, onProbeSequenceSettingsChange }: { onProbeSequenceChange?: (sequence: any) => void, onProbeSequenceSettingsChange?: (settings: any) => void }) => {
@@ -111,55 +88,47 @@ describe('App Component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
-  it('renders without crashing', () => {
-    render(<App />);
-    expect(screen.getByText('Mill Probe Studio')).toBeInTheDocument();
-  });
   it('renders all main tabs', () => {
     render(<App />);
     
-    expect(screen.getByRole('tab', { name: /machine settings/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /probe sequence/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /visualize/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /g-code/i })).toBeInTheDocument();
   });
-  it('shows machine settings tab by default', () => {
+  it('shows probe sequence tab by default', () => {
     render(<App />);
-    // Debug what's actually rendered
-    screen.debug();
-    expect(screen.getByTestId('machine-settings')).toBeInTheDocument();
+    
+    // The default tab should be "sequence" (Probe Sequence)
+    const probeTab = screen.getByRole('tab', { name: /probe sequence/i });
+    expect(probeTab).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('probe-sequence')).toBeInTheDocument();
   });
-  it('updates machine settings when settings change', async () => {
+  it('updates probe sequence when sequence changes', async () => {
     const user = userEvent.setup();
     render(<App />);
     
-    const updateButton = screen.getByTestId('update-settings');
+    // The probe sequence tab should be active by default
+    expect(screen.getByTestId('probe-sequence')).toBeInTheDocument();
+    
+    const updateButton = screen.getByTestId('update-sequence');
     await user.click(updateButton);
     
-    // Settings should be updated - we can verify the component is still there
+    // Sequence should be updated - we can verify the component is still there
     expect(updateButton).toBeInTheDocument();
-  });it('switches to probe sequence tab and updates sequence', async () => {
+  });  it('switches to probe sequence tab and updates sequence', async () => {
     const user = userEvent.setup();
     render(<App />);
     
+    // Probe sequence tab should already be active by default
     const probeTab = screen.getByRole('tab', { name: /probe sequence/i });
-    await user.click(probeTab);
-    
-    // Wait for the tab to become active
-    await waitFor(() => {
-      expect(probeTab).toHaveAttribute('aria-selected', 'true');
-    });
-
-    // Now check for the content
-    await waitFor(() => {
-      expect(screen.getByTestId('probe-sequence')).toBeInTheDocument();
-    });
+    expect(probeTab).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('probe-sequence')).toBeInTheDocument();
 
     const updateButton = screen.getByTestId('update-sequence');
     await user.click(updateButton);
     
     expect(updateButton).toBeInTheDocument();
-  });  it('switches to gcode tab and shows gcode content', async () => {
+  });it('switches to gcode tab and shows gcode content', async () => {
     const user = userEvent.setup();
     render(<App />);
     
@@ -189,24 +158,15 @@ describe('App Component', () => {
     await waitFor(() => {
       expect(screen.getByTestId('gcode-output')).toBeInTheDocument();
     });
-  });  it('generates gcode when both settings and sequence are available', async () => {
+  });  it('generates gcode when sequence is available', async () => {
     const { generateGCode } = await import('@/utils/gcodeGenerator');
     const user = userEvent.setup();
     
     render(<App />);
     
-    // Update machine settings
-    const updateSettingsButton = screen.getByTestId('update-settings');
-    await user.click(updateSettingsButton);
-    
-    // Switch to probe sequence and update sequence
-    const probeTab = screen.getByRole('tab', { name: /probe sequence/i });
-    await user.click(probeTab);
-    
-    await waitFor(async () => {
-      const updateSequenceButton = screen.getByTestId('update-sequence');
-      await user.click(updateSequenceButton);
-    });
+    // Update probe sequence (probe sequence tab is active by default)
+    const updateSequenceButton = screen.getByTestId('update-sequence');
+    await user.click(updateSequenceButton);
     
     // Switch to G-Code tab and trigger generation
     const gcodeTab = screen.getByRole('tab', { name: /g-code/i });
@@ -221,22 +181,15 @@ describe('App Component', () => {
     await waitFor(() => {
       expect(generateGCode).toHaveBeenCalled();
     });
-  });it('displays generated gcode in output tab', async () => {
+  });  it('displays generated gcode in output tab', async () => {
     const user = userEvent.setup();
     render(<App />);
     
-    // Update settings and sequence to trigger gcode generation
-    const updateSettingsButton = screen.getByTestId('update-settings');
-    await user.click(updateSettingsButton);
+    // Update sequence (probe sequence tab is active by default)
+    const updateSequenceButton = screen.getByTestId('update-sequence');
+    await user.click(updateSequenceButton);
     
-    const probeTab = screen.getByRole('tab', { name: /probe sequence/i });
-    await user.click(probeTab);
-    
-    await waitFor(async () => {
-      const updateSequenceButton = screen.getByTestId('update-sequence');
-      await user.click(updateSequenceButton);
-    });
-      // Switch to output tab
+    // Switch to output tab
     const outputTab = screen.getByRole('tab', { name: /g-code/i });
     await user.click(outputTab);
     
@@ -248,15 +201,11 @@ describe('App Component', () => {
     const user = userEvent.setup();
     render(<App />);
     
-    // Update sequence first
-    const probeTab = screen.getByRole('tab', { name: /probe sequence/i });
-    await user.click(probeTab);
+    // Update sequence (probe sequence tab is active by default)
+    const updateSequenceButton = screen.getByTestId('update-sequence');
+    await user.click(updateSequenceButton);
     
-    await waitFor(async () => {
-      const updateSequenceButton = screen.getByTestId('update-sequence');
-      await user.click(updateSequenceButton);
-    });
-      // Switch to visualization
+    // Switch to visualization
     const vizTab = screen.getByRole('tab', { name: /visualize/i });
     await user.click(vizTab);
     
@@ -268,11 +217,11 @@ describe('App Component', () => {
     const user = userEvent.setup();
     render(<App />);
     
-    // Test machine settings update
-    const updateSettingsButton = screen.getByTestId('update-settings');
-    await user.click(updateSettingsButton);
+    // Test probe sequence update (probe sequence tab is active by default)
+    const updateSequenceButton = screen.getByTestId('update-sequence');
+    await user.click(updateSequenceButton);
     
     // Component should still be rendered after state update
-    expect(updateSettingsButton).toBeInTheDocument();
+    expect(updateSequenceButton).toBeInTheDocument();
   });
 });

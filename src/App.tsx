@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import MachineSettingsForm from '@/components/MachineSettings';
 import ProbeSequenceEditor from '@/components/ProbeSequence';
 import GCodeImport from '@/components/GCodeImport';
 import SequenceVisualization from '@/components/SequenceVisualization';
@@ -139,21 +138,12 @@ const App = () => {
         <div className="max-w-7xl mx-auto">
 
 
-          <Tabs defaultValue="machine" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="machine">Machine Settings</TabsTrigger>
+          <Tabs defaultValue="sequence" className="space-y-6">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="sequence">Probe Sequence</TabsTrigger>
               <TabsTrigger value="visualize">Visualize</TabsTrigger>
               <TabsTrigger value="gcode">G-Code</TabsTrigger>
             </TabsList>
-
-            <TabsContent value="machine" className="space-y-6">
-              <MachineSettingsForm
-                machineSettings={machineSettings}
-                setMachineSettings={setMachineSettings}
-                updateAxisConfig={updateAxisConfig}
-              />
-            </TabsContent>
 
             <TabsContent value="sequence" className="space-y-6">
               <GCodeImport
@@ -181,6 +171,9 @@ const App = () => {
                     negativeDirection: machineSettings.axes.Z.negativeDirection,
                   },
                 }}
+                machineSettings={machineSettings}
+                setMachineSettings={setMachineSettings}
+                updateAxisConfig={updateAxisConfig}
                 onProbeSequenceChange={handleProbeSequenceChange}
                 onProbeSequenceSettingsChange={handleProbeSequenceSettingsChange}
               />
@@ -191,6 +184,8 @@ const App = () => {
                 probeSequence={probeSequence}
                 machineSettings={machineSettings}
                 probeSequenceSettings={probeSequenceSettings}
+                setMachineSettings={setMachineSettings}
+                updateAxisConfig={updateAxisConfig}
               />
             </TabsContent>
 

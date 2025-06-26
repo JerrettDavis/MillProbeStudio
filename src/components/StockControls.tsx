@@ -40,7 +40,7 @@ const StockControls: React.FC<StockControlsProps> = ({
   // Helper functions for preset actions
   const resetToDefault = () => {
     onStockSizeChange([25, 25, 10]);
-    
+
     if (machineOrientation === 'horizontal') {
       onStockPositionChange([0, 0, 0]);
     } else {
@@ -56,7 +56,7 @@ const StockControls: React.FC<StockControlsProps> = ({
     if (machineOrientation === 'horizontal') {
       const stockOffsetY = 0;
       const stageDepth = stageDimensions?.[2] || 63.5;
-      const stockOffsetZ = -stageDepth/2 - stockSize[2]/2;
+      const stockOffsetZ = -stageDepth / 2 - stockSize[2] / 2;
       const newPosition: [number, number, number] = [stockPosition[0], stockOffsetY, stockOffsetZ];
       onStockPositionChange(newPosition);
     } else {
@@ -81,7 +81,7 @@ const StockControls: React.FC<StockControlsProps> = ({
         <CardTitle>Stock Controls</CardTitle>
         <CardDescription>Adjust the size and position of the stock/workpiece</CardDescription>
       </CardHeader>
-      
+
       <CardContent className="space-y-6">
         {/* Machine Orientation Controls */}
         <div>
@@ -90,8 +90,8 @@ const StockControls: React.FC<StockControlsProps> = ({
             <Label className="text-sm text-muted-foreground">
               Machine Orientation
             </Label>
-            <RadioGroup 
-              value={machineOrientation} 
+            <RadioGroup
+              value={machineOrientation}
               onValueChange={(value) => onMachineOrientationChange?.(value as 'vertical' | 'horizontal')}
               className="flex gap-6"
             >
@@ -108,14 +108,14 @@ const StockControls: React.FC<StockControlsProps> = ({
                 </Label>
               </div>
             </RadioGroup>
-            
+
             {machineOrientation === 'horizontal' && (
               <p className="text-xs text-muted-foreground mt-2">
                 X+ face attached to stage, spindle faces Z+ direction
               </p>
             )}
           </div>
-          
+
           {/* Stage Dimensions for Horizontal Machines */}
           {machineOrientation === 'horizontal' && (
             <div className="space-y-3 mt-4">
@@ -124,7 +124,7 @@ const StockControls: React.FC<StockControlsProps> = ({
               </Label>
               <Dimensional3DInput
                 values={stageDimensions}
-                onChange={onStageDimensionsChange || (() => {})}
+                onChange={onStageDimensionsChange || (() => { })}
                 labels={['Height (X)', 'Width (Y)', 'Depth (Z)']}
                 units={units}
                 min={0.1}
@@ -137,9 +137,26 @@ const StockControls: React.FC<StockControlsProps> = ({
             </div>
           )}
         </div>
-        
+
         <Separator />
-        
+
+
+
+        {/* Quick Actions */}
+        <div>
+          <h4 className="text-sm font-medium mb-3">Quick Actions</h4>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={centerStock}>
+              Center Stock
+            </Button>
+            <Button variant="outline" size="sm" onClick={resetToDefault}>
+              Reset to Default
+            </Button>
+          </div>
+        </div>
+
+        <Separator />
+
         {/* Stock Size Controls */}
         <div>
           <h4 className="text-sm font-medium mb-3">Stock Size</h4>
@@ -179,10 +196,10 @@ const StockControls: React.FC<StockControlsProps> = ({
                   className="mt-1 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                 />
                 <div className="text-xs text-gray-500 mt-1">
-                  {machineOrientation === 'horizontal' 
-                    ? axis === 'X' ? 'Offset from stage X+ face (spindle side)' 
+                  {machineOrientation === 'horizontal'
+                    ? axis === 'X' ? 'Offset from stage X+ face (spindle side)'
                       : axis === 'Y' ? 'Offset from stage Y center'
-                      : 'Offset from stage top'
+                        : 'Offset from stage top'
                     : `Range: ${machineSettings.axes[axis as 'X' | 'Y' | 'Z'].min} to ${machineSettings.axes[axis as 'X' | 'Y' | 'Z'].max}`
                   }
                 </div>
@@ -191,20 +208,7 @@ const StockControls: React.FC<StockControlsProps> = ({
           </div>
         </div>
 
-        <Separator />
 
-        {/* Quick Actions */}
-        <div>
-          <h4 className="text-sm font-medium mb-3">Quick Actions</h4>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={centerStock}>
-              Center Stock
-            </Button>
-            <Button variant="outline" size="sm" onClick={resetToDefault}>
-              Reset to Default
-            </Button>
-          </div>
-        </div>
       </CardContent>
     </Card>
   );

@@ -7,7 +7,32 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import type { ProbeOperation, MovementStep, ProbeSequenceSettings } from '@/types/machine';
+import { 
+  Drawer, 
+  DrawerContent, 
+  DrawerHeader, 
+  DrawerTitle, 
+  DrawerDescription, 
+  DrawerTrigger
+} from "@/components/ui/drawer";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { Settings, ChevronDown, ChevronRight } from "lucide-react";
+import type { ProbeOperation, MovementStep, ProbeSequenceSettings, MachineSettings } from '@/types/machine';
+import MachineSettingsForm from './MachineSettings';
+
+// Type definitions
+interface AxisConfig {
+  label: string;
+  positiveDirection: string;
+  negativeDirection: string;
+  polarity: 1 | -1;
+  min: number;
+  max: number;
+}
 
 interface ProbeSequenceProps {
     // Data passed in
@@ -24,6 +49,11 @@ interface ProbeSequenceProps {
         Z: { positiveDirection: string; negativeDirection: string };
     };
     
+    // Machine settings for drawer
+    machineSettings: MachineSettings;
+    setMachineSettings: React.Dispatch<React.SetStateAction<MachineSettings>>;
+    updateAxisConfig: (axis: 'X' | 'Y' | 'Z', field: keyof AxisConfig, value: AxisConfig[keyof AxisConfig]) => void;
+    
     // Callbacks to notify parent of changes
     onProbeSequenceChange?: (probeSequence: ProbeOperation[]) => void;
     onProbeSequenceSettingsChange?: (settings: ProbeSequenceSettings) => void;
@@ -33,6 +63,9 @@ const ProbeSequenceEditor: React.FC<ProbeSequenceProps> = ({
     initialData,
     machineSettingsUnits,
     machineAxes,
+    machineSettings,
+    setMachineSettings,
+    updateAxisConfig,
     onProbeSequenceChange,
     onProbeSequenceSettingsChange
 }) => {
@@ -54,7 +87,40 @@ const ProbeSequenceEditor: React.FC<ProbeSequenceProps> = ({
             },
             operations: []
         }
-    );    // Sync units from machine settings
+    );
+
+    // State for collapsible sections - track which probe operation sections are open
+    const [collapsibleState, setCollapsibleState] = useState<Record<string, {
+        probing: boolean;
+        preMoves: boolean;
+        postMoves: boolean;
+    }>>({});
+
+    // Initialize collapsible state for new probe operations
+    useEffect(() => {
+        const newState = { ...collapsibleState };
+        probeSequence.forEach(probe => {
+            if (!newState[probe.id]) {
+                newState[probe.id] = {
+                    probing: true,  // Operation Probing Settings open by default
+                    preMoves: false, // Pre-Probe Movements closed by default
+                    postMoves: false // Post-Probe Movements closed by default
+                };
+            }
+        });
+        setCollapsibleState(newState);
+    }, [probeSequence]);
+
+    // Helper function to toggle collapsible state
+    const toggleCollapsible = (probeId: string, section: 'probing' | 'preMoves' | 'postMoves') => {
+        setCollapsibleState(prev => ({
+            ...prev,
+            [probeId]: {
+                ...prev[probeId],
+                [section]: !prev[probeId]?.[section]
+            }
+        }));
+    };    // Sync units from machine settings
     useEffect(() => {
         setProbeSequenceSettings(prev => ({
             ...prev,
@@ -164,6 +230,18 @@ const ProbeSequenceEditor: React.FC<ProbeSequenceProps> = ({
             coordinateSystem: 'none'
         };
 
+        // Expand the section if it's collapsed
+        const sectionKey = moveType === 'pre' ? 'preMoves' : 'postMoves';
+        if (!collapsibleState[probeId]?.[sectionKey]) {
+            setCollapsibleState(prev => ({
+                ...prev,
+                [probeId]: {
+                    ...prev[probeId],
+                    [sectionKey]: true
+                }
+            }));
+        }
+
         setProbeSequence(prev => prev.map(probe =>
             probe.id === probeId ? {
                 ...probe,
@@ -173,6 +251,14 @@ const ProbeSequenceEditor: React.FC<ProbeSequenceProps> = ({
                 ]
             } : probe
         ));
+
+        // Scroll the new element into view after a short delay to allow for DOM updates
+        setTimeout(() => {
+            const newElement = document.querySelector(`[data-step-id="${newStep.id}"]`);
+            if (newElement) {
+                newElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }, 100);
     };
 
     const updateMovementStep = (probeId: string, stepId: string, field: keyof MovementStep, value: MovementStep[keyof MovementStep], moveType: 'pre' | 'post' = 'post') => {
@@ -200,9 +286,9 @@ const ProbeSequenceEditor: React.FC<ProbeSequenceProps> = ({
         idPrefix: string;
         moveType: 'pre' | 'post';
     }> = ({ move, probe, idPrefix, moveType }) => (
-        <div className="col-span-3 flex flex-row gap-4 items-end">
-            <div className="flex flex-col w-20">
-                <Label htmlFor={`${idPrefix}-x-${move.id}`}>X</Label>
+        <div className="flex flex-row gap-2 sm:gap-4 items-end w-full sm:w-auto">
+            <div className="flex flex-col w-full sm:w-20">
+                <Label htmlFor={`${idPrefix}-x-${move.id}`} className="text-sm">X</Label>
                 <Input
                     id={`${idPrefix}-x-${move.id}`}
                     type="number"
@@ -221,8 +307,8 @@ const ProbeSequenceEditor: React.FC<ProbeSequenceProps> = ({
                     placeholder="X"
                 />
             </div>
-            <div className="flex flex-col w-20">
-                <Label htmlFor={`${idPrefix}-y-${move.id}`}>Y</Label>
+            <div className="flex flex-col w-full sm:w-20">
+                <Label htmlFor={`${idPrefix}-y-${move.id}`} className="text-sm">Y</Label>
                 <Input
                     id={`${idPrefix}-y-${move.id}`}
                     type="number"
@@ -241,8 +327,8 @@ const ProbeSequenceEditor: React.FC<ProbeSequenceProps> = ({
                     placeholder="Y"
                 />
             </div>
-            <div className="flex flex-col w-20">
-                <Label htmlFor={`${idPrefix}-z-${move.id}`}>Z</Label>
+            <div className="flex flex-col w-full sm:w-20">
+                <Label htmlFor={`${idPrefix}-z-${move.id}`} className="text-sm">Z</Label>
                 <Input
                     id={`${idPrefix}-z-${move.id}`}
                     type="number"
@@ -262,7 +348,9 @@ const ProbeSequenceEditor: React.FC<ProbeSequenceProps> = ({
                 />
             </div>
         </div>
-    );    // Handler for WCS Offset change - simple controlled input
+    );
+
+    // Handler for WCS Offset change - simple controlled input
     const handleWcsOffsetChange = (probeId: string, value: string) => {
         if (value === '' || isNaN(Number(value))) {
             updateProbeOperation(probeId, 'wcsOffset', 0);
@@ -277,35 +365,63 @@ const ProbeSequenceEditor: React.FC<ProbeSequenceProps> = ({
         moveType: 'pre' | 'post';
         moves: MovementStep[];
         title: string;
-    }> = ({ probe, moveType, moves, title }) => (
-        <div>
-            <div className="flex justify-between items-center mb-2">
-                <Label className="text-base font-semibold">{title}</Label>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => addMovementStep(probe.id, moveType)}
-                >
-                    Add Movement
-                </Button>
-            </div>
-            {moves.map((move, moveIndex) => (
-                <Card key={move.id} className="mb-2">
-                    <CardContent className="pt-4">
-                        <div className="flex justify-between items-start mb-4">
-                            <Badge variant="secondary">Step {moveIndex + 1}</Badge>
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => deleteMovementStep(probe.id, move.id, moveType)}
-                            >
-                                Delete
-                            </Button>
+        isOpen: boolean;
+        onToggle: () => void;
+    }> = ({ probe, moveType, moves, title, isOpen, onToggle }) => {
+        const hasMovements = moves.length > 0;
+        const titleWithCount = hasMovements ? `${moves.length} ${title}` : title;
+        
+        return (
+            <Collapsible open={isOpen} onOpenChange={onToggle}>
+                <CollapsibleTrigger asChild>
+                    <div className={`flex justify-between items-center mb-4 p-2 rounded-md transition-colors ${
+                        hasMovements ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800' : 'cursor-default'
+                    }`}>
+                        <div className="flex items-center gap-2">
+                            {hasMovements && (
+                                isOpen ? (
+                                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                ) : (
+                                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                )
+                            )}
+                            <Label className={`text-base font-semibold ${hasMovements ? 'cursor-pointer' : 'cursor-default'}`}>{titleWithCount}</Label>
                         </div>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                                e.stopPropagation(); // Prevent triggering the collapsible
+                                addMovementStep(probe.id, moveType);
+                            }}
+                        >
+                            Add Movement
+                        </Button>
+                    </div>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                    <div className="space-y-2">
+                        {moves.map((move, moveIndex) => (
+                        <Card key={move.id} className="mb-2 bg-gray-50 dark:bg-gray-800 pt-4 pb-4" data-step-id={move.id}>
+                            <CardContent className="pt-0 mt-0">
+                                <div className="flex justify-between items-start mb-4">
+                                    <Badge variant="outline">Step {moveIndex + 1}</Badge>
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => deleteMovementStep(probe.id, move.id, moveType)}
+                                        className="ml-2"
+                                        aria-label="Delete movement step"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={6} d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </Button>
+                                </div>
                         
                         {/* First row: Type, Axes (for rapid), Dwell Time (for dwell), and Description */}
-                        <div className="flex gap-4 items-end mb-4">
-                            <div className="w-48">
+                        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end mb-4">
+                            <div className="w-full sm:w-40">
                                 <Label>Type</Label>
                                 <Select value={move.type} onValueChange={(value: 'rapid' | 'dwell') =>
                                     updateMovementStep(probe.id, move.id, 'type', value, moveType)}>
@@ -320,11 +436,13 @@ const ProbeSequenceEditor: React.FC<ProbeSequenceProps> = ({
                             </div>
                             
                             {move.type === 'rapid' && (
-                                <AxisInputs move={move} probe={probe} idPrefix={`${moveType}-rapid`} moveType={moveType} />
+                                <div className="w-full sm:w-auto">
+                                    <AxisInputs move={move} probe={probe} idPrefix={`${moveType}-rapid`} moveType={moveType} />
+                                </div>
                             )}
                             
                             {move.type === 'dwell' && (
-                                <div className="w-32">
+                                <div className="w-full sm:w-32">
                                     <Label>Dwell Time (sec)</Label>
                                     <Input
                                         type="number"
@@ -336,7 +454,7 @@ const ProbeSequenceEditor: React.FC<ProbeSequenceProps> = ({
                                 </div>
                             )}
                             
-                            <div className="flex-1">
+                            <div className="flex-1 w-full">
                                 <Label>Description</Label>
                                 <Input
                                     value={move.description}
@@ -346,13 +464,13 @@ const ProbeSequenceEditor: React.FC<ProbeSequenceProps> = ({
                             </div>
                         </div>
                         
-                        {/* Second row: Radio groups for rapid moves only */}
+                        {/* Second row: Radio groups for rapid moves only - responsive layout */}
                         {move.type === 'rapid' && (
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                                 {/* Position Mode Radio Group */}
                                 <div>
                                     <Label className="text-sm font-medium">Position Mode</Label>
-                                    <div className="flex flex-row gap-2 mt-2">
+                                    <div className="flex flex-col sm:flex-row gap-2 mt-2">
                                         <div className="flex items-center space-x-2">
                                             <input
                                                 type="radio"
@@ -398,7 +516,7 @@ const ProbeSequenceEditor: React.FC<ProbeSequenceProps> = ({
                                 {/* Coordinate System Radio Group */}
                                 <div>
                                     <Label className="text-sm font-medium">Coordinate System</Label>
-                                    <div className="flex flex-row gap-2 mt-2">
+                                    <div className="flex flex-col sm:flex-row gap-2 mt-2">
                                         <div className="flex items-center space-x-2">
                                             <input
                                                 type="radio"
@@ -445,20 +563,47 @@ const ProbeSequenceEditor: React.FC<ProbeSequenceProps> = ({
                     </CardContent>
                 </Card>
             ))}
-        </div>
-    );
+                    </div>
+                </CollapsibleContent>
+            </Collapsible>
+        );
+    };
 
     return (
         <Card>
             <CardHeader>
                 <CardTitle>Probe Sequence</CardTitle>
                 <CardDescription>Define the sequence of probing operations</CardDescription>
-                <Button onClick={addProbeOperation} className="w-fit">
-                    Add Probe Operation
-                </Button>            </CardHeader>
+                <div className="flex gap-2">
+                    <Button onClick={addProbeOperation} className="w-fit">
+                        Add Probe Operation
+                    </Button>
+                    <Drawer>
+                        <DrawerTrigger asChild>
+                            <Button variant="outline" className="w-fit">
+                                <Settings className="w-4 h-4 mr-2" />
+                                Machine Settings
+                            </Button>
+                        </DrawerTrigger>
+                        <DrawerContent>
+                            <DrawerHeader>
+                                <DrawerTitle>Machine Settings</DrawerTitle>
+                                <DrawerDescription>Configure your CNC machine parameters and axis settings</DrawerDescription>
+                            </DrawerHeader>
+                            <div className="px-4 pb-4 max-h-[70vh] overflow-y-auto">
+                                <MachineSettingsForm
+                                    machineSettings={machineSettings}
+                                    setMachineSettings={setMachineSettings}
+                                    updateAxisConfig={updateAxisConfig}
+                                />
+                            </div>
+                        </DrawerContent>
+                    </Drawer>
+                </div>
+            </CardHeader>
             <CardContent className="space-y-4">
                 {/* Initial Position Settings */}
-                <Card>
+                <Card className="bg-cyan-100 dark:bg-cyan-900/30 border-cyan-300 dark:border-cyan-700">
                     <CardHeader>
                         <CardTitle>Initial Probe Position</CardTitle>
                         <CardDescription>Set the starting position for the probe sequence in machine coordinates</CardDescription>
@@ -480,7 +625,7 @@ const ProbeSequenceEditor: React.FC<ProbeSequenceProps> = ({
                 </Card>                {/* Buffer Clear, Spindle, and Endmill Settings Row */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                     {/* Dwells Before Probe Settings */}
-                    <Card>
+                    <Card className="bg-cyan-100 dark:bg-cyan-900/30 border-cyan-300 dark:border-cyan-700">
                         <CardHeader>
                             <CardTitle>Buffer Clear Settings</CardTitle>
                             <CardDescription>Configure the number of buffer clear dwells before each probe operation</CardDescription>
@@ -499,7 +644,7 @@ const ProbeSequenceEditor: React.FC<ProbeSequenceProps> = ({
                     </Card>
 
                     {/* Spindle Speed Settings */}
-                    <Card>
+                    <Card className="bg-cyan-100 dark:bg-cyan-900/30 border-cyan-300 dark:border-cyan-700">
                         <CardHeader>
                             <CardTitle>Spindle Settings</CardTitle>
                             <CardDescription>Configure spindle speed for this probe sequence</CardDescription>
@@ -516,7 +661,7 @@ const ProbeSequenceEditor: React.FC<ProbeSequenceProps> = ({
                     </Card>
 
                     {/* Endmill Size Settings */}
-                    <Card>
+                    <Card className="bg-cyan-100 dark:bg-cyan-900/30 border-cyan-300 dark:border-cyan-700">
                         <CardHeader>
                             <CardTitle>Endmill Settings</CardTitle>
                             <CardDescription>Configure endmill size for this probe sequence (affects WCS offset calculation)</CardDescription>
@@ -548,7 +693,7 @@ const ProbeSequenceEditor: React.FC<ProbeSequenceProps> = ({
 
                 {/* Probe Operations */}
                 {probeSequence.map((probe, index) => (
-                    <Card key={probe.id}>
+                    <Card key={probe.id} className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
                         <CardHeader>
                             <div className="flex justify-between items-center">
                                 <CardTitle className="text-lg">Probe Operation {index + 1}</CardTitle>
@@ -562,148 +707,177 @@ const ProbeSequenceEditor: React.FC<ProbeSequenceProps> = ({
                             </div>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <div className="grid grid-cols-3 gap-4">
-                                <div>
-                                    <Label>Probe Axis</Label>
-                                    <Select value={probe.axis} onValueChange={(value: 'X' | 'Y' | 'Z') =>
-                                        updateProbeOperation(probe.id, 'axis', value)}>
-                                        <SelectTrigger>
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="X">X Axis</SelectItem>
-                                            <SelectItem value="Y">Y Axis</SelectItem>
-                                            <SelectItem value="Z">Z Axis</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div>
-                                    <Label>
-                                        <span className="flex items-center gap-1">
-                                            Direction
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <span className="cursor-help text-muted-foreground">?</span>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>Which direction the axis should move to bring the probe into contact with the stock surface</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </span>
-                                    </Label>
-                                    <Select value={probe.direction.toString()} onValueChange={(value) =>
-                                        updateProbeOperation(probe.id, 'direction', parseInt(value))}>
-                                        <SelectTrigger>
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="1">{machineAxes[probe.axis].positiveDirection} (+)</SelectItem>
-                                            <SelectItem value="-1">{machineAxes[probe.axis].negativeDirection} (-)</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div>
-                                    <Label>
-                                        <span className="flex items-center gap-1">
-                                            Distance ({machineSettingsUnits})
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <span className="cursor-help text-muted-foreground">?</span>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>Maximum distance the axis can travel to find stock surface</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </span>
-                                    </Label>
-                                    <Input
-                                        type="number"
-                                        step="0.1"
-                                        value={probe.distance}
-                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateProbeOperation(probe.id, 'distance', parseFloat(e.target.value))}
-                                    />
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-3 gap-4">
-                                <div>
-                                    <Label>
-                                        <span className="flex items-center gap-1">
-                                            Feed Rate ({machineSettingsUnits}/min)
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <span className="cursor-help text-muted-foreground">?</span>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>How fast the axis should move</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </span>
-                                    </Label>
-                                    <Input
-                                        type="number"
-                                        value={probe.feedRate}
-                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateProbeOperation(probe.id, 'feedRate', parseInt(e.target.value))}
-                                    />
-                                </div>
-                                <div>
-                                    <Label>
-                                        <span className="flex items-center gap-1">
-                                            Backoff Distance ({machineSettingsUnits})
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <span className="cursor-help text-muted-foreground">?</span>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>How far the axis should retract after making contact with the stock surface</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </span>
-                                    </Label>
-                                    <Input
-                                        type="number"
-                                        step="0.1"
-                                        value={probe.backoffDistance}
-                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateProbeOperation(probe.id, 'backoffDistance', parseFloat(e.target.value))}
-                                    />
-                                </div>
-                                <div>
-                                    <Label htmlFor={`wcs-offset-${probe.id}`}>
-                                        <span className="flex items-center gap-1">
-                                            WCS Offset ({machineSettingsUnits})
-                                            <Tooltip>
-                                                <TooltipTrigger asChild>
-                                                    <span className="cursor-help text-muted-foreground">?</span>
-                                                </TooltipTrigger>
-                                                <TooltipContent>
-                                                    <p>Typically does not need to be manually set. Used to offset for the radius of the tool. Sets distance between contact point and actual origin.</p>
-                                                </TooltipContent>
-                                            </Tooltip>
-                                        </span>
-                                    </Label>                                    <Input
-                                        id={`wcs-offset-${probe.id}`}
-                                        type="number"
-                                        step="0.0001"
-                                        value={typeof probe.wcsOffset === 'number' && !isNaN(probe.wcsOffset) ? probe.wcsOffset : ''}
-                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleWcsOffsetChange(probe.id, e.target.value)}
-                                        min={0}
-                                    />
-                                </div>
-                            </div>                            <Separator />
+                            {/* Operation Probing Settings - Collapsible */}
+                            <Collapsible 
+                                open={collapsibleState[probe.id]?.probing ?? true} 
+                                onOpenChange={() => toggleCollapsible(probe.id, 'probing')}
+                            >
+                                <CollapsibleTrigger asChild>
+                                    <div className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 p-2 rounded-md transition-colors mb-4">
+                                        {collapsibleState[probe.id]?.probing ?? true ? (
+                                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                        ) : (
+                                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                        )}
+                                        <Label className="text-base font-semibold cursor-pointer">{probe.axis} Axis Probing Settings</Label>
+                                    </div>
+                                </CollapsibleTrigger>
+                                <CollapsibleContent>
+                                    <div className="space-y-4">
+                                        {/* First row: Axis, Direction, Distance */}
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                            <div>
+                                                <Label>Probe Axis</Label>
+                                                <Select value={probe.axis} onValueChange={(value: 'X' | 'Y' | 'Z') =>
+                                                    updateProbeOperation(probe.id, 'axis', value)}>
+                                                    <SelectTrigger>
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="X">X Axis</SelectItem>
+                                                        <SelectItem value="Y">Y Axis</SelectItem>
+                                                        <SelectItem value="Z">Z Axis</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div>
+                                                <Label>
+                                                    <span className="flex items-center gap-1">
+                                                        Direction
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <span className="cursor-help text-muted-foreground">?</span>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                <p>Which direction the axis should move to bring the probe into contact with the stock surface</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </span>
+                                                </Label>
+                                                <Select value={probe.direction.toString()} onValueChange={(value) =>
+                                                    updateProbeOperation(probe.id, 'direction', parseInt(value))}>
+                                                    <SelectTrigger>
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="1">{machineAxes[probe.axis].positiveDirection} (+)</SelectItem>
+                                                        <SelectItem value="-1">{machineAxes[probe.axis].negativeDirection} (-)</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                            <div>
+                                                <Label>
+                                                    <span className="flex items-center gap-1">
+                                                        Distance ({machineSettingsUnits})
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <span className="cursor-help text-muted-foreground">?</span>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                <p>Maximum distance the axis can travel to find stock surface</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </span>
+                                                </Label>
+                                                <Input
+                                                    type="number"
+                                                    step="0.1"
+                                                    value={probe.distance}
+                                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateProbeOperation(probe.id, 'distance', parseFloat(e.target.value))}
+                                                />
+                                            </div>
+                                        </div>
+                                        {/* Second row: Feed Rate, Backoff Distance, WCS Offset */}
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                            <div>
+                                                <Label>
+                                                    <span className="flex items-center gap-1">
+                                                        Feed Rate ({machineSettingsUnits}/min)
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <span className="cursor-help text-muted-foreground">?</span>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                <p>How fast the axis should move</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </span>
+                                                </Label>
+                                                <Input
+                                                    type="number"
+                                                    value={probe.feedRate}
+                                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateProbeOperation(probe.id, 'feedRate', parseInt(e.target.value))}
+                                                />
+                                            </div>
+                                            <div>
+                                                <Label>
+                                                    <span className="flex items-center gap-1">
+                                                        Backoff Distance ({machineSettingsUnits})
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <span className="cursor-help text-muted-foreground">?</span>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                <p>How far the axis should retract after making contact with the stock surface</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </span>
+                                                </Label>
+                                                <Input
+                                                    type="number"
+                                                    step="0.1"
+                                                    value={probe.backoffDistance}
+                                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateProbeOperation(probe.id, 'backoffDistance', parseFloat(e.target.value))}
+                                                />
+                                            </div>
+                                            <div>
+                                                <Label htmlFor={`wcs-offset-${probe.id}`}>
+                                                    <span className="flex items-center gap-1">
+                                                        WCS Offset ({machineSettingsUnits})
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <span className="cursor-help text-muted-foreground">?</span>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent>
+                                                                <p>Typically does not need to be manually set. Used to offset for the radius of the tool. Sets distance between contact point and actual origin.</p>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    </span>
+                                                </Label>
+                                                <Input
+                                                    id={`wcs-offset-${probe.id}`}
+                                                    type="number"
+                                                    step="0.0001"
+                                                    value={typeof probe.wcsOffset === 'number' && !isNaN(probe.wcsOffset) ? probe.wcsOffset : ''}
+                                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleWcsOffsetChange(probe.id, e.target.value)}
+                                                    min={0}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </CollapsibleContent>
+                            </Collapsible>
+
+                            <Separator />
                             
                             <MovementStepsSection
                                 probe={probe}
                                 moveType="pre"
                                 moves={probe.preMoves}
                                 title="Pre-Probe Movements"
+                                isOpen={collapsibleState[probe.id]?.preMoves ?? false}
+                                onToggle={() => toggleCollapsible(probe.id, 'preMoves')}
                             />
                             
                             <Separator />
-                            
+
                             <MovementStepsSection
                                 probe={probe}
                                 moveType="post"
                                 moves={probe.postMoves}
                                 title="Post-Probe Movements"
+                                isOpen={collapsibleState[probe.id]?.postMoves ?? false}
+                                onToggle={() => toggleCollapsible(probe.id, 'postMoves')}
                             />
                         </CardContent>
                     </Card>
