@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 1.2.0 (2025-06-26)
+
+* chore: fixed linting issues. ([153be2e](https://github.com/JerrettDavis/MillProbeStudio/commit/153be2e))
+* feat: implement centralized state management with zustand and enhance camera controls ([fed4468](https://github.com/JerrettDavis/MillProbeStudio/commit/fed4468))
+
 ## 1.1.0 (2025-06-26)
 
 * fix: correct test failures after machine configuration refactor ([0d11b1b](https://github.com/JerrettDavis/MillProbeStudio/commit/0d11b1b))

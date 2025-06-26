@@ -1,7 +1,7 @@
 {
   "name": "mill-probe-studio",
   "private": true,
-  "version": "1.1.0",
+  "version": "1.2.0",
   "type": "module",
   "description": "A modern web application for creating, managing, and visualizing CNC mill probe sequences with intelligent G-code generation",
   "keywords": [
@@ -71,7 +71,7 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-resizable-panels": "^3.0.3",
-    "rollup": "^4.44.0",
+    "rollup": "^4.44.1",
     "tailwind-merge": "^3.3.1",
     "tailwindcss": "^4.1.10",
     "three": "^0.177.0",
