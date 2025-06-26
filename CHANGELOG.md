@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 1.1.0 (2025-06-26)
+
+* fix: correct test failures after machine configuration refactor ([0d11b1b](https://github.com/JerrettDavis/MillProbeStudio/commit/0d11b1b))
+* fix: corrected z-ordering for visualziation and moved control buttons out of the view. Corrected man ([3dc528e](https://github.com/JerrettDavis/MillProbeStudio/commit/3dc528e))
+* feat: add machine orientation and stage dimensions to machine settings ([86f4632](https://github.com/JerrettDavis/MillProbeStudio/commit/86f4632))
+* feat: enhance UI/UX with improved navigation and responsive design ([9b5dd3b](https://github.com/JerrettDavis/MillProbeStudio/commit/9b5dd3b))
+* ci: added codecov bundler plugin and test actions ([023046f](https://github.com/JerrettDavis/MillProbeStudio/commit/023046f))
+* ci: corrected bundle name ([ac4148e](https://github.com/JerrettDavis/MillProbeStudio/commit/ac4148e))
+* Merge branch 'main' of https://github.com/JerrettDavis/MillProbeStudio ([c1cc240](https://github.com/JerrettDavis/MillProbeStudio/commit/c1cc240))
+
 ## 1.0.0 (2025-06-26)
 
 * ci: add codecov configuration file ([119d324](https://github.com/JerrettDavis/MillProbeStudio/commit/119d324))
