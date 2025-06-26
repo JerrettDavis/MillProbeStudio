@@ -10,9 +10,7 @@
 
 Mill Probe Studio is a comprehensive tool designed for CNC machinists and engineers to streamline the probing workflow. Create precise probe sequences with visual feedback, import existing G-code for analysis, and generate optimized probe routines with automatic comment extraction and intelligent movement planning.
 
-![Mill Probe Studio Screenshot](https://via.placeholder.com/800x400/1f2937/ffffff?text=Mill+Probe+Studio+Demo)
-
-## 🎯 **Key Features**
+![Mill Probe Studio Screenshot](https://raw.githubusercontent.com/JerrettDavis/MillProbeStudio/refs/heads/main/public/visualization_ss.png)
 
 ## 🎯 **Key Features**
 
