@@ -50,7 +50,8 @@ describe('MachineSettingsForm Component', () => {
       />
     );
 
-    expect(screen.getByText('Machine Configuration')).toBeInTheDocument();
+    // Check for the card title (first occurrence)
+    expect(screen.getAllByText('Machine Configuration')[0]).toBeInTheDocument();
     expect(screen.getByText('Configure your mill\'s axis assignments, directions, and limits')).toBeInTheDocument();
   });
   it('renders units selector with current value', () => {
