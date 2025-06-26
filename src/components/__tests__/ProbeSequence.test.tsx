@@ -3,8 +3,12 @@ import { describe, it, expect, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import ProbeSequenceEditor from '../ProbeSequence';
 import type { ProbeSequenceSettings } from '@/types/machine';
+import { createMockMachineSettings } from '@/test/mockMachineSettings';
 
 describe('ProbeSequenceEditor Component', () => {
+  const mockMachineSettings = createMockMachineSettings();
+  const mockSetMachineSettings = vi.fn();
+  const mockUpdateAxisConfig = vi.fn();
   const baseProbe = {
     id: 'probe-1',
     axis: 'X' as const,
@@ -42,6 +46,9 @@ describe('ProbeSequenceEditor Component', () => {
         }}
         machineSettingsUnits="mm"
         machineAxes={machineAxes}
+        machineSettings={mockMachineSettings}
+        setMachineSettings={mockSetMachineSettings}
+        updateAxisConfig={mockUpdateAxisConfig}
         onProbeSequenceChange={onProbeSequenceChangeMock}
         onProbeSequenceSettingsChange={vi.fn()}
       />
@@ -71,6 +78,9 @@ describe('ProbeSequenceEditor Component', () => {
         }}
         machineSettingsUnits="mm"
         machineAxes={machineAxes}
+        machineSettings={mockMachineSettings}
+        setMachineSettings={mockSetMachineSettings}
+        updateAxisConfig={mockUpdateAxisConfig}
         onProbeSequenceChange={onProbeSequenceChangeMock}
         onProbeSequenceSettingsChange={vi.fn()}
       />
@@ -96,6 +106,9 @@ describe('ProbeSequenceEditor Component', () => {
         }}
         machineSettingsUnits="mm"
         machineAxes={machineAxes}
+        machineSettings={mockMachineSettings}
+        setMachineSettings={mockSetMachineSettings}
+        updateAxisConfig={mockUpdateAxisConfig}
         onProbeSequenceChange={vi.fn()}
         onProbeSequenceSettingsChange={onProbeSequenceSettingsChangeMock}
       />
@@ -122,6 +135,9 @@ describe('ProbeSequenceEditor Component', () => {
         }}
         machineSettingsUnits="mm"
         machineAxes={machineAxes}
+        machineSettings={mockMachineSettings}
+        setMachineSettings={mockSetMachineSettings}
+        updateAxisConfig={mockUpdateAxisConfig}
         onProbeSequenceChange={vi.fn()}
         onProbeSequenceSettingsChange={onProbeSequenceSettingsChangeMock}
       />

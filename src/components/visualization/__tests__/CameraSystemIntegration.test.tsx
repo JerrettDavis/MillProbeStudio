@@ -10,6 +10,7 @@ import {
 } from '../CameraSystem';
 import { calculateCameraPosition } from '@/utils/visualization/cameraPresets';
 import { calculateWorkspaceBounds } from '@/utils/visualization/machineGeometry';
+import { createMockMachineSettings } from '@/test/mockMachineSettings';
 import type { MachineSettings } from '@/types/machine';
 import type { Position3D } from '@/utils/visualization/machineGeometry';
 import type { CameraPreset } from '@/utils/visualization/cameraPresets';
@@ -68,32 +69,7 @@ afterEach(() => {
 });
 
 // Mock machine settings for testing
-const testMachineSettings: MachineSettings = {
-  units: 'mm',
-  axes: {
-    X: {
-      positiveDirection: '+X',
-      negativeDirection: '-X',
-      polarity: 1,
-      min: -100,
-      max: 100
-    },
-    Y: {
-      positiveDirection: '+Y',
-      negativeDirection: '-Y',
-      polarity: 1,
-      min: -150,
-      max: 150
-    },
-    Z: {
-      positiveDirection: '+Z',
-      negativeDirection: '-Z',
-      polarity: 1,
-      min: -50,
-      max: 50
-    }
-  }
-};
+const testMachineSettings = createMockMachineSettings();
 
 // Mock three.js Camera
 const mockCamera = {
@@ -140,8 +116,7 @@ vi.mock('@react-three/drei', () => ({
  */
 const CameraSystemIntegrationTest: React.FC<{
   machineSettings: MachineSettings;
-  machineOrientation: 'horizontal' | 'vertical';
-}> = ({ machineSettings, machineOrientation }) => {
+}> = ({ machineSettings }) => {
   const [currentPreset, setCurrentPreset] = useState<CameraPreset>('home');
   const [pivotMode, setPivotMode] = useState<'tool' | 'origin'>('tool');
   const [cameraPosition, setCameraPosition] = useState({ x: 0, y: 0, z: 100 });
@@ -158,7 +133,7 @@ const CameraSystemIntegrationTest: React.FC<{
       workspaceBounds,
       machineSettings,
       target,
-      machineOrientation
+      machineSettings.machineOrientation
     );
     
     // Update camera position (in real implementation, this would animate)
@@ -193,7 +168,6 @@ const CameraSystemIntegrationTest: React.FC<{
           ref={controlsRef}
           target={target}
           machineSettings={machineSettings}
-          machineOrientation={machineOrientation}
           onControlsReady={handleControlsReady}
         />
         <CameraTracker onCameraUpdate={handleCameraUpdate} />
@@ -232,7 +206,6 @@ describe('Camera System Integration Tests', () => {
       render(
         <CameraSystemIntegrationTest
           machineSettings={testMachineSettings}
-          machineOrientation="horizontal"
         />
       );
 
@@ -250,7 +223,6 @@ describe('Camera System Integration Tests', () => {
       render(
         <CameraSystemIntegrationTest
           machineSettings={testMachineSettings}
-          machineOrientation="horizontal"
         />
       );
 
@@ -272,7 +244,6 @@ describe('Camera System Integration Tests', () => {
       render(
         <CameraSystemIntegrationTest
           machineSettings={testMachineSettings}
-          machineOrientation="horizontal"
         />
       );
 
@@ -294,7 +265,6 @@ describe('Camera System Integration Tests', () => {
       render(
         <CameraSystemIntegrationTest
           machineSettings={testMachineSettings}
-          machineOrientation="horizontal"
         />
       );
 
@@ -316,7 +286,6 @@ describe('Camera System Integration Tests', () => {
       render(
         <CameraSystemIntegrationTest
           machineSettings={testMachineSettings}
-          machineOrientation="horizontal"
         />
       );
 
@@ -348,7 +317,6 @@ describe('Camera System Integration Tests', () => {
         render(
           <CameraSystemIntegrationTest
             machineSettings={testMachineSettings}
-            machineOrientation="horizontal"
           />
         );
 
@@ -376,7 +344,6 @@ describe('Camera System Integration Tests', () => {
       render(
         <CameraSystemIntegrationTest
           machineSettings={testMachineSettings}
-          machineOrientation="horizontal"
         />
       );
 
@@ -390,7 +357,6 @@ describe('Camera System Integration Tests', () => {
       render(
         <CameraSystemIntegrationTest
           machineSettings={testMachineSettings}
-          machineOrientation="vertical"
         />
       );
 
@@ -404,7 +370,6 @@ describe('Camera System Integration Tests', () => {
       const { rerender } = render(
         <CameraSystemIntegrationTest
           machineSettings={testMachineSettings}
-          machineOrientation="horizontal"
         />
       );
 
@@ -412,7 +377,6 @@ describe('Camera System Integration Tests', () => {
       rerender(
         <CameraSystemIntegrationTest
           machineSettings={testMachineSettings}
-          machineOrientation="vertical"
         />
       );
 
@@ -431,7 +395,6 @@ describe('Camera System Integration Tests', () => {
       render(
         <CameraSystemIntegrationTest
           machineSettings={testMachineSettings}
-          machineOrientation="horizontal"
         />
       );
 
@@ -451,20 +414,19 @@ describe('Camera System Integration Tests', () => {
     });
 
     it('should handle edge case machine settings', async () => {
-      const edgeCaseMachineSettings: MachineSettings = {
+      const edgeCaseMachineSettings = createMockMachineSettings({
         units: 'inch',
         axes: {
           X: { positiveDirection: '+X', negativeDirection: '-X', polarity: 1, min: -0.1, max: 0.1 },
           Y: { positiveDirection: '+Y', negativeDirection: '-Y', polarity: 1, min: -0.1, max: 0.1 },
           Z: { positiveDirection: '+Z', negativeDirection: '-Z', polarity: 1, min: -0.1, max: 0.1 }
         }
-      };
+      });
 
       expect(() => {
         render(
           <CameraSystemIntegrationTest
             machineSettings={edgeCaseMachineSettings}
-            machineOrientation="horizontal"
           />
         );
       }).not.toThrow();
@@ -478,7 +440,6 @@ describe('Camera System Integration Tests', () => {
       const { rerender } = render(
         <CameraSystemIntegrationTest
           machineSettings={testMachineSettings}
-          machineOrientation="horizontal"
         />
       );
 
@@ -499,7 +460,6 @@ describe('Camera System Integration Tests', () => {
       rerender(
         <CameraSystemIntegrationTest
           machineSettings={updatedMachineSettings}
-          machineOrientation="horizontal"
         />
       );
 
@@ -516,7 +476,6 @@ describe('Camera System Integration Tests', () => {
       render(
         <CameraSystemIntegrationTest
           machineSettings={testMachineSettings}
-          machineOrientation="horizontal"
         />
       );
 
@@ -539,7 +498,6 @@ describe('Camera System Integration Tests', () => {
       render(
         <CameraSystemIntegrationTest
           machineSettings={testMachineSettings}
-          machineOrientation="horizontal"
         />
       );
 
@@ -556,7 +514,6 @@ describe('Camera System Integration Tests', () => {
       render(
         <CameraSystemIntegrationTest
           machineSettings={testMachineSettings}
-          machineOrientation="horizontal"
         />
       );
 

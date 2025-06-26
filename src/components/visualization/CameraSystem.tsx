@@ -11,7 +11,6 @@ import { CAMERA_PRESETS } from '@/utils/visualization/cameraPresets';
 export interface EnhancedOrbitControlsProps {
   target: Position3D;
   machineSettings: MachineSettings;
-  machineOrientation: 'vertical' | 'horizontal';
   onControlsReady?: (controls: { setPosition: (position: Position3D) => void }) => void;
 }
 
@@ -21,7 +20,6 @@ export interface EnhancedOrbitControlsProps {
 export const EnhancedOrbitControls = React.forwardRef<OrbitControlsImpl, EnhancedOrbitControlsProps>(({
   target,
   machineSettings,
-  machineOrientation,
   onControlsReady
 }, ref) => {
   const { camera } = useThree();
@@ -29,6 +27,9 @@ export const EnhancedOrbitControls = React.forwardRef<OrbitControlsImpl, Enhance
   
   // Use the passed ref or internal ref
   const controlsRef = (ref as React.MutableRefObject<OrbitControlsImpl>) || internalControlsRef;
+  
+  // Extract machine orientation from machine settings
+  const machineOrientation = machineSettings.machineOrientation;
   
   // Calculate dynamic max distance based on machine workspace
   const maxDistance = useMemo(() => {
@@ -47,7 +48,8 @@ export const EnhancedOrbitControls = React.forwardRef<OrbitControlsImpl, Enhance
       
       // Set camera up vector based on machine orientation
       const config = MACHINE_ORIENTATION_CONFIGS[machineOrientation];
-      camera.up.set(...config.upVector);
+      const upVector = config.upVector as [number, number, number];
+      camera.up.set(...upVector);
       
       controlsRef.current.update();
     }
@@ -64,7 +66,7 @@ export const EnhancedOrbitControls = React.forwardRef<OrbitControlsImpl, Enhance
         }
       });
     }
-  }, [target, onControlsReady, machineOrientation, camera, controlsRef]);
+  }, [target, onControlsReady, machineSettings.machineOrientation, camera, controlsRef]);
   
   return (
     <OrbitControls 

@@ -18,8 +18,6 @@ export interface Machine3DVisualizationProps {
   onStockPositionChange?: (position: [number, number, number]) => void;
   showAxisLabels?: boolean;
   showCoordinateHover?: boolean;
-  machineOrientation?: 'vertical' | 'horizontal';
-  stageDimensions?: [number, number, number];
 }
 
 /**
@@ -28,14 +26,12 @@ export interface Machine3DVisualizationProps {
 const Machine3DVisualization: React.FC<Machine3DVisualizationProps> = ({
   machineSettings,
   probeSequence,
-  className = "",
+  className = '',
   height = "600px",
   stockSize: providedStockSize,
   stockPosition: providedStockPosition,
   showAxisLabels = true,
-  showCoordinateHover = true,
-  machineOrientation: providedMachineOrientation = 'horizontal',
-  stageDimensions: providedStageDimensions = [12.7, 304.8, 63.5]
+  showCoordinateHover = true
 }) => {
   // Use props directly instead of centralized state management
   const [currentPreset, setCurrentPreset] = React.useState<CameraPreset>('home');
@@ -47,16 +43,14 @@ const Machine3DVisualization: React.FC<Machine3DVisualizationProps> = ({
     machineSettings,
     probeSequence,
     stockSize: providedStockSize || [25, 25, 10],
-    stockPosition: providedStockPosition || [0, 0, 0],
-    machineOrientation: providedMachineOrientation,
-    stageDimensions: providedStageDimensions
+    stockPosition: providedStockPosition || [0, 0, 0]
   });
 
   // Calculate initial camera position
   const initialCameraPosition = React.useMemo(() => {
-    const pos = calculateInitialCameraPosition(machineSettings, providedMachineOrientation);
+    const pos = calculateInitialCameraPosition(machineSettings, machineSettings.machineOrientation);
     return [pos.x, pos.y, pos.z] as [number, number, number];
-  }, [machineSettings, providedMachineOrientation]);
+  }, [machineSettings]);
 
   // Handlers
   const handleControlsReady = useCallback(() => {
@@ -97,8 +91,6 @@ const Machine3DVisualization: React.FC<Machine3DVisualizationProps> = ({
               stockPosition={providedStockPosition || [0, 0, 0]}
               showAxisLabels={showAxisLabels}
               showCoordinateHover={showCoordinateHover}
-              machineOrientation={providedMachineOrientation}
-              stageDimensions={providedStageDimensions}
               currentPreset={currentPreset}
               onCameraUpdate={setCameraPosition}
               onControlsReady={handleControlsReady}

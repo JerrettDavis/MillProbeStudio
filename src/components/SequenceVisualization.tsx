@@ -42,11 +42,10 @@ const SequenceVisualization: React.FC<SequenceVisualizationProps> = ({
   setMachineSettings,
   updateAxisConfig
 }) => {
-  // State for stock controls and machine orientation
+  // State for stock controls
   const [stockSize, setStockSize] = useState<[number, number, number]>([25, 25, 10]);
-  const [machineOrientation, setMachineOrientation] = useState<'vertical' | 'horizontal'>('horizontal');
-  const [stageDimensions, setStageDimensions] = useState<[number, number, number]>([12.7, 304.8, 63.5]);
-    // State for probe position controls
+  
+  // State for probe position controls
   const [probePosition, setProbePosition] = useState<{X: number, Y: number, Z: number}>(() => {
     return probeSequenceSettings?.initialPosition || { X: 0, Y: 0, Z: 0 };
   });
@@ -63,9 +62,6 @@ const SequenceVisualization: React.FC<SequenceVisualizationProps> = ({
   }, []);
   const handleStockPositionChange = useCallback((position: [number, number, number]) => {
     setStockPosition(position);
-  }, []);
-  const handleStageDimensionsChange = useCallback((dimensions: [number, number, number]) => {
-    setStageDimensions(dimensions);
   }, []);
   
   const handleProbePositionChange = useCallback((position: {X: number, Y: number, Z: number}) => {
@@ -108,8 +104,6 @@ const SequenceVisualization: React.FC<SequenceVisualizationProps> = ({
                 onStockPositionChange={handleStockPositionChange}
                 showAxisLabels={true}
                 showCoordinateHover={true}
-                machineOrientation={machineOrientation}
-                stageDimensions={stageDimensions}
                 height="100%"
               />
             </div>
@@ -162,10 +156,6 @@ const SequenceVisualization: React.FC<SequenceVisualizationProps> = ({
                       onStockPositionChange={handleStockPositionChange}
                       units={machineSettings.units}
                       machineSettings={machineSettings}
-                      machineOrientation={machineOrientation}
-                      onMachineOrientationChange={setMachineOrientation}
-                      stageDimensions={stageDimensions}
-                      onStageDimensionsChange={handleStageDimensionsChange}
                     />
                   </div>
                 </DrawerContent>
@@ -191,10 +181,8 @@ const SequenceVisualization: React.FC<SequenceVisualizationProps> = ({
                       onProbePositionChange={handleProbePositionChange}
                       units={machineSettings.units}
                       machineSettings={machineSettings}
-                      machineOrientation={machineOrientation}
                       stockSize={stockSize}
                       stockPosition={stockPosition}
-                      stageDimensions={stageDimensions}
                     />
                   </div>
                 </DrawerContent>

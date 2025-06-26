@@ -6,7 +6,7 @@ import {
   animateCameraToPosition
 } from '../cameraPresets';
 import type { WorkspaceBounds } from '../machineGeometry';
-import type { MachineSettings } from '@/types/machine';
+import { createMockMachineSettings } from '@/test/mockMachineSettings';
 
 describe('Camera Presets Utilities', () => {
   const mockBounds: WorkspaceBounds = {
@@ -24,7 +24,7 @@ describe('Camera Presets Utilities', () => {
     maxZ: -80
   };
 
-  const mockMachineSettings: MachineSettings = {
+  const mockMachineSettings = createMockMachineSettings({
     units: 'mm',
     axes: {
       X: {
@@ -49,7 +49,7 @@ describe('Camera Presets Utilities', () => {
         max: -80
       }
     }
-  };
+  });
 
   const mockTarget = { x: -50, y: -120, z: -40 };
 

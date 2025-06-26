@@ -9,9 +9,10 @@ import {
   calculateCameraDistance,
   calculateMachineGeometry
 } from '../machineGeometry';
-import type { MachineSettings, ProbeSequenceSettings } from '@/types/machine';
+import { createMockMachineSettings } from '@/test/mockMachineSettings';
+import type { ProbeSequenceSettings } from '@/types/machine';
 
-const mockMachineSettings: MachineSettings = {
+const mockMachineSettings = createMockMachineSettings({
   units: 'mm',
   axes: {
     X: {
@@ -36,7 +37,7 @@ const mockMachineSettings: MachineSettings = {
       max: -78.5
     }
   }
-};
+});
 
 const mockProbeSequence: ProbeSequenceSettings = {
   initialPosition: { X: -43, Y: -121, Z: -39.5 },

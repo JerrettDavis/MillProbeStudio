@@ -3,7 +3,9 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent} from "@/comp
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
+import { Dimensional3DInput } from "@/components/ui/DimensionalInput";
 import type { MachineSettings, AxisConfig } from '@/types/machine';
 
 interface MachineSettingsProps {
@@ -33,6 +35,65 @@ const MachineSettingsForm: React.FC<MachineSettingsProps> = ({ machineSettings, 
           </Select>
         </div>
       </div>
+      <Separator />
+      
+      {/* Machine Configuration Section */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-medium">Machine Configuration</h3>
+        
+        {/* Machine Orientation */}
+        <div>
+          <Label className="text-sm text-muted-foreground">Machine Orientation</Label>
+          <RadioGroup 
+            value={machineSettings.machineOrientation} 
+            onValueChange={(value: 'vertical' | 'horizontal') =>
+              setMachineSettings(prev => ({ ...prev, machineOrientation: value }))}
+            className="flex gap-6 mt-2"
+          >
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="vertical" id="vertical" />
+              <Label htmlFor="vertical" className="text-sm">
+                Vertical Spindle (Traditional Mill)
+              </Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <RadioGroupItem value="horizontal" id="horizontal" />
+              <Label htmlFor="horizontal" className="text-sm">
+                Horizontal Spindle (Rotated Stage)
+              </Label>
+            </div>
+          </RadioGroup>
+          
+          {machineSettings.machineOrientation === 'horizontal' && (
+            <p className="text-xs text-muted-foreground mt-2">
+              X+ face attached to stage, spindle faces Z+ direction
+            </p>
+          )}
+        </div>
+
+        {/* Stage Dimensions for Horizontal Machines */}
+        {machineSettings.machineOrientation === 'horizontal' && (
+          <div className="space-y-3">
+            <Label className="text-sm text-muted-foreground">
+              Stage Dimensions
+            </Label>
+            <Dimensional3DInput
+              values={machineSettings.stageDimensions}
+              onChange={(dimensions: [number, number, number]) => 
+                setMachineSettings(prev => ({ ...prev, stageDimensions: dimensions }))}
+              labels={['Height (X)', 'Width (Y)', 'Depth (Z)']}
+              units={machineSettings.units}
+              min={0.1}
+              step={0.1}
+              className="h-8"
+            />
+            <p className="text-xs text-muted-foreground">
+              Stage is positioned perpendicular to XY plane, affixed to bottom of stock
+            </p>
+          </div>
+        )}
+      </div>
+      
       <Separator />
       {Object.entries(machineSettings.axes).map(([axis, config]) => (
         <Card key={axis}>

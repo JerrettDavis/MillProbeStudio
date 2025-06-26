@@ -11,10 +11,8 @@ interface ProbeControlsProps {
   onProbePositionChange: (position: { X: number; Y: number; Z: number }) => void;
   units: string;
   machineSettings: MachineSettings;
-  machineOrientation?: 'vertical' | 'horizontal';
   stockSize?: [number, number, number];
   stockPosition?: [number, number, number];
-  stageDimensions?: [number, number, number];
 }
 
 const ProbeControls: React.FC<ProbeControlsProps> = ({
@@ -22,11 +20,12 @@ const ProbeControls: React.FC<ProbeControlsProps> = ({
   onProbePositionChange,
   units,
   machineSettings,
-  machineOrientation = 'vertical',
   stockSize = [25, 25, 10],
-  stockPosition = [0, 0, 0],
-  stageDimensions = [12.7, 304.8, 63.5]
+  stockPosition = [0, 0, 0]
 }) => {
+  // Extract machine orientation and stage dimensions from machine settings
+  const machineOrientation = machineSettings.machineOrientation;
+  const stageDimensions = machineSettings.stageDimensions;
   // Position change handler with clamping
   const handlePositionChange = (axis: 'X' | 'Y' | 'Z', value: string) => {
     const numValue = validators.parseFloat(value);

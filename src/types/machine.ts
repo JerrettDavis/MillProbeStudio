@@ -15,6 +15,8 @@ export interface MachineSettings {
     Y: AxisConfig;
     Z: AxisConfig;
   };
+  machineOrientation: 'vertical' | 'horizontal';
+  stageDimensions: [number, number, number]; // [height, width, depth] in mm or inches
 }
 
 export interface ProbeSequenceSettings {

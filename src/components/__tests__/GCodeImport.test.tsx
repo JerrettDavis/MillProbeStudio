@@ -4,39 +4,14 @@ import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import GCodeImport from '../GCodeImport';
 import { parseGCode } from '@/utils/gcodeParser';
-import type { MachineSettings } from '@/types/machine';
+import { createMockMachineSettings } from '@/test/mockMachineSettings';
 
 // Mock the gcode parser
 vi.mock('@/utils/gcodeParser', () => ({
   parseGCode: vi.fn()
 }));
 
-const mockMachineSettings: MachineSettings = {
-  units: 'mm',
-  axes: {
-    X: {
-      positiveDirection: 'Down',
-      negativeDirection: 'Up',
-      polarity: 1,
-      min: -86,
-      max: -0.5
-    },
-    Y: {
-      positiveDirection: 'Right',
-      negativeDirection: 'Left',
-      polarity: 1,
-      min: -0.5,
-      max: -241.50
-    },
-    Z: {
-      positiveDirection: 'In',
-      negativeDirection: 'Out',
-      polarity: -1,
-      min: -0.5,
-      max: -78.50
-    }
-  }
-};
+const mockMachineSettings = createMockMachineSettings();
 
 const mockParseResult = {
   probeSequence: [

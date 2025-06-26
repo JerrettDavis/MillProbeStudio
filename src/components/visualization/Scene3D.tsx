@@ -36,8 +36,6 @@ export interface Scene3DProps {
   stockPosition: [number, number, number];
   showAxisLabels?: boolean;
   showCoordinateHover?: boolean;
-  machineOrientation: 'vertical' | 'horizontal';
-  stageDimensions: [number, number, number];
   currentPreset?: CameraPreset;
   onCameraUpdate?: (position: { x: number; y: number; z: number }) => void;
   onControlsReady?: () => void;
@@ -55,8 +53,6 @@ export const Scene3D: React.FC<Scene3DProps> = ({
   stockPosition,
   showAxisLabels = true,
   showCoordinateHover = true,
-  machineOrientation,
-  stageDimensions,
   currentPreset,
   onCameraUpdate,
   onControlsReady,
@@ -64,6 +60,10 @@ export const Scene3D: React.FC<Scene3DProps> = ({
 }) => {
   const { camera } = useThree();
   const [hoverPosition, setHoverPosition] = useState<[number, number, number] | null>(null);
+  
+  // Extract machine orientation and stage dimensions from machine settings
+  const machineOrientation = machineSettings.machineOrientation;
+  const stageDimensions = machineSettings.stageDimensions;
   
   // Get machine orientation configuration
   const orientationConfig = MACHINE_ORIENTATION_CONFIGS[machineOrientation];
@@ -269,7 +269,6 @@ export const Scene3D: React.FC<Scene3DProps> = ({
       <EnhancedOrbitControls 
         target={cameraTarget}
         machineSettings={machineSettings}
-        machineOrientation={machineOrientation}
         onControlsReady={handleControlsReady}
       />
     </>

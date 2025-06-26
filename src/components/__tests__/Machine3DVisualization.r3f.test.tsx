@@ -1,33 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import ReactThreeTestRenderer from '@react-three/test-renderer';
 import type { MachineSettings, ProbeSequenceSettings } from '@/types/machine';
+import { createMockMachineSettings } from '@/test/mockMachineSettings';
 
-const mockMachineSettings: MachineSettings = {
-  units: 'mm',
-  axes: {
-    X: {
-      positiveDirection: '+X',
-      negativeDirection: '-X',
-      polarity: 1,
-      min: -100,
-      max: 100
-    },
-    Y: {
-      positiveDirection: '+Y',
-      negativeDirection: '-Y',
-      polarity: 1,
-      min: -150,
-      max: 150
-    },
-    Z: {
-      positiveDirection: '+Z',
-      negativeDirection: '-Z',
-      polarity: 1,
-      min: -50,
-      max: 50
-    }
-  }
-};
+const mockMachineSettings = createMockMachineSettings();
 
 const mockProbeSequenceSettings: ProbeSequenceSettings = {
   initialPosition: { X: 0, Y: 0, Z: 10 },

@@ -4,8 +4,9 @@ import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import MachineSettingsForm from '../MachineSettings';
 import type { MachineSettings } from '@/types/machine';
+import { createMockMachineSettings } from '@/test/mockMachineSettings';
 
-const mockMachineSettings: MachineSettings = {
+const mockMachineSettings = createMockMachineSettings({
   units: 'inch',
   axes: {
     X: {
@@ -30,7 +31,7 @@ const mockMachineSettings: MachineSettings = {
       max: -78.50
     }
   }
-};
+});
 
 describe('MachineSettingsForm Component', () => {
   const mockSetMachineSettings = vi.fn();

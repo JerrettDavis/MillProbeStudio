@@ -1,9 +1,14 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import ProbeSequenceEditor from '../ProbeSequence';
+import { createMockMachineSettings } from '@/test/mockMachineSettings';
 import type { ProbeOperation, ProbeSequenceSettings } from '@/types/machine';
 
 describe('ProbeSequenceEditor Import Functionality', () => {
+  const mockMachineSettings = createMockMachineSettings();
+  const mockSetMachineSettings = vi.fn();
+  const mockUpdateAxisConfig = vi.fn();
+  
   const mockMachineAxes = {
     X: { positiveDirection: 'Down', negativeDirection: 'Up' },
     Y: { positiveDirection: 'Right', negativeDirection: 'Left' },
@@ -56,6 +61,9 @@ describe('ProbeSequenceEditor Import Functionality', () => {
         }}
         machineSettingsUnits="mm"
         machineAxes={mockMachineAxes}
+        machineSettings={mockMachineSettings}
+        setMachineSettings={mockSetMachineSettings}
+        updateAxisConfig={mockUpdateAxisConfig}
         onProbeSequenceChange={onProbeSequenceChange}
         onProbeSequenceSettingsChange={onProbeSequenceSettingsChange}      />
     );
@@ -105,6 +113,9 @@ describe('ProbeSequenceEditor Import Functionality', () => {
         }}
         machineSettingsUnits="mm"
         machineAxes={mockMachineAxes}
+        machineSettings={mockMachineSettings}
+        setMachineSettings={mockSetMachineSettings}
+        updateAxisConfig={mockUpdateAxisConfig}
         onProbeSequenceChange={onProbeSequenceChange}
         onProbeSequenceSettingsChange={onProbeSequenceSettingsChange}
       />

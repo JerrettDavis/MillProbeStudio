@@ -7,8 +7,6 @@ export interface UseMachineGeometryProps {
   probeSequence?: ProbeSequenceSettings;
   stockSize: [number, number, number];
   stockPosition: [number, number, number];
-  machineOrientation: 'vertical' | 'horizontal';
-  stageDimensions: [number, number, number];
 }
 
 /**
@@ -18,9 +16,7 @@ export const useMachineGeometry = ({
   machineSettings,
   probeSequence,
   stockSize,
-  stockPosition,
-  machineOrientation,
-  stageDimensions
+  stockPosition
 }: UseMachineGeometryProps): MachineGeometry => {
   return useMemo(() => {
     return calculateMachineGeometry(
@@ -28,15 +24,13 @@ export const useMachineGeometry = ({
       probeSequence,
       stockSize,
       stockPosition,
-      machineOrientation,
-      stageDimensions
+      machineSettings.machineOrientation,
+      machineSettings.stageDimensions
     );
   }, [
     machineSettings,
     probeSequence,
     stockSize,
-    stockPosition,
-    machineOrientation,
-    stageDimensions
+    stockPosition
   ]);
 };

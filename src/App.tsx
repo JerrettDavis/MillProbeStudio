@@ -43,7 +43,9 @@ const defaultMachineSettings: MachineSettings = {
       min: -0.5,
       max: -78.50
     }
-  }
+  },
+  machineOrientation: 'horizontal',
+  stageDimensions: [12.7, 304.8, 63.5]
 };
 
 const App = () => {

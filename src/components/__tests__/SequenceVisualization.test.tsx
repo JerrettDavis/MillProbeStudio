@@ -3,39 +3,17 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import SequenceVisualization from '../SequenceVisualization';
-import type { ProbeOperation, MachineSettings } from '@/types/machine';
+import type { ProbeOperation } from '@/types/machine';
+import { createMockMachineSettings } from '@/test/mockMachineSettings';
 
 // Mock the 3D visualization component to avoid Three.js in tests
 vi.mock('../Machine3DVisualization', () => ({
   default: () => <div data-testid="mock-3d-visualization">3D Visualization Mock</div>
 }));
 
-const mockMachineSettings: MachineSettings = {
-  units: 'mm',
-  axes: {
-    X: {
-      positiveDirection: '+X',
-      negativeDirection: '-X',
-      polarity: 1,
-      min: -100,
-      max: 100
-    },
-    Y: {
-      positiveDirection: '+Y',
-      negativeDirection: '-Y',
-      polarity: 1,
-      min: -100,
-      max: 100
-    },
-    Z: {
-      positiveDirection: '+Z',
-      negativeDirection: '-Z',
-      polarity: 1,
-      min: -50,
-      max: 50
-    }
-  }
-};
+const mockMachineSettings = createMockMachineSettings();
+const mockSetMachineSettings = vi.fn();
+const mockUpdateAxisConfig = vi.fn();
 
 const mockProbeSequence: ProbeOperation[] = [
   {
@@ -72,20 +50,35 @@ const mockProbeSequence: ProbeOperation[] = [
 
 describe('SequenceVisualization Component', () => {
   it('renders 3D visualization title and description', () => {
-    render(<SequenceVisualization probeSequence={[]} machineSettings={mockMachineSettings} />);
+    render(<SequenceVisualization 
+      probeSequence={[]} 
+      machineSettings={mockMachineSettings} 
+      setMachineSettings={mockSetMachineSettings}
+      updateAxisConfig={mockUpdateAxisConfig}
+    />);
     
     expect(screen.getByText('3D Visualization')).toBeInTheDocument();
     expect(screen.getByText('Interactive 3D view of your machine, stock, and probe sequence')).toBeInTheDocument();
   });
 
   it('shows 3D visualization component', () => {
-    render(<SequenceVisualization probeSequence={[]} machineSettings={mockMachineSettings} />);
+    render(<SequenceVisualization 
+      probeSequence={[]} 
+      machineSettings={mockMachineSettings} 
+      setMachineSettings={mockSetMachineSettings}
+      updateAxisConfig={mockUpdateAxisConfig}
+    />);
     
     expect(screen.getByTestId('mock-3d-visualization')).toBeInTheDocument();
   });
 
   it('renders drawer buttons for controls and sequence details', () => {
-    render(<SequenceVisualization probeSequence={mockProbeSequence} machineSettings={mockMachineSettings} />);
+    render(<SequenceVisualization 
+      probeSequence={mockProbeSequence} 
+      machineSettings={mockMachineSettings} 
+      setMachineSettings={mockSetMachineSettings}
+      updateAxisConfig={mockUpdateAxisConfig}
+    />);
 
     expect(screen.getByRole('button', { name: /Stock Controls/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Probe Position/ })).toBeInTheDocument();
@@ -94,7 +87,12 @@ describe('SequenceVisualization Component', () => {
 
   it('opens stock controls drawer when button is clicked', async () => {
     const user = userEvent.setup();
-    render(<SequenceVisualization probeSequence={[]} machineSettings={mockMachineSettings} />);
+    render(<SequenceVisualization 
+      probeSequence={[]} 
+      machineSettings={mockMachineSettings} 
+      setMachineSettings={mockSetMachineSettings}
+      updateAxisConfig={mockUpdateAxisConfig}
+    />);
 
     // Click the Stock Controls button
     await user.click(screen.getByRole('button', { name: /Stock Controls/ }));
@@ -104,7 +102,12 @@ describe('SequenceVisualization Component', () => {
   });
   it('displays probe operations details when drawer is opened', async () => {
     const user = userEvent.setup();
-    render(<SequenceVisualization probeSequence={mockProbeSequence} machineSettings={mockMachineSettings} />);
+    render(<SequenceVisualization 
+      probeSequence={mockProbeSequence} 
+      machineSettings={mockMachineSettings} 
+      setMachineSettings={mockSetMachineSettings}
+      updateAxisConfig={mockUpdateAxisConfig}
+    />);
     
     // Click on the "Sequence Details" button to open drawer
     await user.click(screen.getByRole('button', { name: /Sequence Details/ }));
@@ -124,7 +127,12 @@ describe('SequenceVisualization Component', () => {
 
   it('displays probe operations with correct badges', async () => {
     const user = userEvent.setup();
-    render(<SequenceVisualization probeSequence={mockProbeSequence} machineSettings={mockMachineSettings} />);
+    render(<SequenceVisualization 
+      probeSequence={mockProbeSequence} 
+      machineSettings={mockMachineSettings} 
+      setMachineSettings={mockSetMachineSettings}
+      updateAxisConfig={mockUpdateAxisConfig}
+    />);
     
     // Click on the "Sequence Details" tab
     await user.click(screen.getByText('Sequence Details'));
@@ -141,7 +149,12 @@ describe('SequenceVisualization Component', () => {
   it('displays probe operations with inch units', async () => {
     const user = userEvent.setup();
     const inchMachineSettings = { ...mockMachineSettings, units: 'inch' as const };
-    render(<SequenceVisualization probeSequence={mockProbeSequence} machineSettings={inchMachineSettings} />);
+    render(<SequenceVisualization 
+      probeSequence={mockProbeSequence} 
+      machineSettings={inchMachineSettings} 
+      setMachineSettings={mockSetMachineSettings}
+      updateAxisConfig={mockUpdateAxisConfig}
+    />);
     
     // Click on the "Sequence Details" tab
     await user.click(screen.getByText('Sequence Details'));
@@ -167,7 +180,12 @@ describe('SequenceVisualization Component', () => {
       }
     ];
 
-    render(<SequenceVisualization probeSequence={singleProbe} machineSettings={mockMachineSettings} />);
+    render(<SequenceVisualization 
+      probeSequence={singleProbe} 
+      machineSettings={mockMachineSettings} 
+      setMachineSettings={mockSetMachineSettings}
+      updateAxisConfig={mockUpdateAxisConfig}
+    />);
     
     // Click on the "Sequence Details" tab
     await user.click(screen.getByText('Sequence Details'));
@@ -217,7 +235,12 @@ describe('SequenceVisualization Component', () => {
       }
     ];
 
-    render(<SequenceVisualization probeSequence={probeWithManyMoves} machineSettings={mockMachineSettings} />);
+    render(<SequenceVisualization 
+      probeSequence={probeWithManyMoves} 
+      machineSettings={mockMachineSettings} 
+      setMachineSettings={mockSetMachineSettings}
+      updateAxisConfig={mockUpdateAxisConfig}
+    />);
     
     // Click on the "Sequence Details" tab
     await user.click(screen.getByText('Sequence Details'));
@@ -256,7 +279,12 @@ describe('SequenceVisualization Component', () => {
       }
     ];
 
-    render(<SequenceVisualization probeSequence={bothDirections} machineSettings={mockMachineSettings} />);
+    render(<SequenceVisualization 
+      probeSequence={bothDirections} 
+      machineSettings={mockMachineSettings} 
+      setMachineSettings={mockSetMachineSettings}
+      updateAxisConfig={mockUpdateAxisConfig}
+    />);
     
     // Click on the "Sequence Details" tab
     await user.click(screen.getByText('Sequence Details'));
@@ -265,7 +293,12 @@ describe('SequenceVisualization Component', () => {
     expect(screen.getByText('Probe X axis negative direction')).toBeInTheDocument();
   });
   it('renders the main structure with 3D visualization and drawer buttons', () => {
-    render(<SequenceVisualization probeSequence={mockProbeSequence} machineSettings={mockMachineSettings} />);
+    render(<SequenceVisualization 
+      probeSequence={mockProbeSequence} 
+      machineSettings={mockMachineSettings} 
+      setMachineSettings={mockSetMachineSettings}
+      updateAxisConfig={mockUpdateAxisConfig}
+    />);
     
     // Check that the 3D visualization card is present
     expect(screen.getByText('3D Visualization')).toBeInTheDocument();

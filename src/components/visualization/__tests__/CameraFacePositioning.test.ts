@@ -4,36 +4,11 @@ import {
   calculateInitialCameraPosition
 } from '@/utils/visualization/cameraPresets';
 import { MACHINE_ORIENTATION_CONFIGS } from '@/config/visualization/visualizationConfig';
-import type { MachineSettings } from '@/types/machine';
+import { createMockMachineSettings } from '@/test/mockMachineSettings';
 import type { WorkspaceBounds, Position3D } from '@/utils/visualization/machineGeometry';
 
 // Mock machine settings representing a typical milling machine
-const horizontalMachineSettings: MachineSettings = {
-  units: 'mm',
-  axes: {
-    X: {
-      positiveDirection: '+X',
-      negativeDirection: '-X',
-      polarity: 1,
-      min: -100,
-      max: 100
-    },
-    Y: {
-      positiveDirection: '+Y',
-      negativeDirection: '-Y',
-      polarity: 1,
-      min: -150,
-      max: 150
-    },
-    Z: {
-      positiveDirection: '+Z',
-      negativeDirection: '-Z',
-      polarity: 1,
-      min: -50,
-      max: 50
-    }
-  }
-};
+const horizontalMachineSettings = createMockMachineSettings();
 
 const mockWorkspaceBounds: WorkspaceBounds = {
   width: 200,  // X: 100 - (-100)

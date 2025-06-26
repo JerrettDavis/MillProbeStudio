@@ -3,8 +3,8 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Dimensional3DInput } from "@/components/ui/DimensionalInput";
+import type { MachineSettings } from '@/types/machine';
 
 interface StockControlsProps {
   stockSize: [number, number, number];
@@ -12,17 +12,7 @@ interface StockControlsProps {
   onStockSizeChange: (size: [number, number, number]) => void;
   onStockPositionChange: (position: [number, number, number]) => void;
   units: string;
-  machineSettings: {
-    axes: {
-      X: { min: number; max: number };
-      Y: { min: number; max: number };
-      Z: { min: number; max: number };
-    };
-  };
-  machineOrientation?: 'vertical' | 'horizontal';
-  onMachineOrientationChange?: (orientation: 'vertical' | 'horizontal') => void;
-  stageDimensions?: [number, number, number];
-  onStageDimensionsChange?: (dimensions: [number, number, number]) => void;
+  machineSettings: MachineSettings;
 }
 
 const StockControls: React.FC<StockControlsProps> = ({
@@ -31,12 +21,11 @@ const StockControls: React.FC<StockControlsProps> = ({
   onStockSizeChange,
   onStockPositionChange,
   units,
-  machineSettings,
-  machineOrientation = 'vertical',
-  onMachineOrientationChange,
-  stageDimensions = [12.7, 304.8, 63.5],
-  onStageDimensionsChange
+  machineSettings
 }) => {
+  // Extract machine orientation and stage dimensions from machine settings
+  const machineOrientation = machineSettings.machineOrientation;
+  const stageDimensions = machineSettings.stageDimensions;
   // Helper functions for preset actions
   const resetToDefault = () => {
     onStockSizeChange([25, 25, 10]);
@@ -80,83 +69,7 @@ const StockControls: React.FC<StockControlsProps> = ({
       <CardHeader>
         <CardTitle>Stock Controls</CardTitle>
         <CardDescription>Adjust the size and position of the stock/workpiece</CardDescription>
-      </CardHeader>
-
-      <CardContent className="space-y-6">
-        {/* Machine Orientation Controls */}
-        <div>
-          <h4 className="text-sm font-medium mb-3">Machine Configuration</h4>
-          <div className="space-y-3">
-            <Label className="text-sm text-muted-foreground">
-              Machine Orientation
-            </Label>
-            <RadioGroup
-              value={machineOrientation}
-              onValueChange={(value) => onMachineOrientationChange?.(value as 'vertical' | 'horizontal')}
-              className="flex gap-6"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="vertical" id="vertical" />
-                <Label htmlFor="vertical" className="text-sm">
-                  Vertical Spindle (Traditional Mill)
-                </Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="horizontal" id="horizontal" />
-                <Label htmlFor="horizontal" className="text-sm">
-                  Horizontal Spindle (Rotated Stage)
-                </Label>
-              </div>
-            </RadioGroup>
-
-            {machineOrientation === 'horizontal' && (
-              <p className="text-xs text-muted-foreground mt-2">
-                X+ face attached to stage, spindle faces Z+ direction
-              </p>
-            )}
-          </div>
-
-          {/* Stage Dimensions for Horizontal Machines */}
-          {machineOrientation === 'horizontal' && (
-            <div className="space-y-3 mt-4">
-              <Label className="text-sm text-muted-foreground">
-                Stage Dimensions
-              </Label>
-              <Dimensional3DInput
-                values={stageDimensions}
-                onChange={onStageDimensionsChange || (() => { })}
-                labels={['Height (X)', 'Width (Y)', 'Depth (Z)']}
-                units={units}
-                min={0.1}
-                step={0.1}
-                className="h-8"
-              />
-              <p className="text-xs text-muted-foreground">
-                Stage is positioned perpendicular to XY plane, affixed to bottom of stock
-              </p>
-            </div>
-          )}
-        </div>
-
-        <Separator />
-
-
-
-        {/* Quick Actions */}
-        <div>
-          <h4 className="text-sm font-medium mb-3">Quick Actions</h4>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={centerStock}>
-              Center Stock
-            </Button>
-            <Button variant="outline" size="sm" onClick={resetToDefault}>
-              Reset to Default
-            </Button>
-          </div>
-        </div>
-
-        <Separator />
-
+      </CardHeader>      <CardContent className="space-y-6">
         {/* Stock Size Controls */}
         <div>
           <h4 className="text-sm font-medium mb-3">Stock Size</h4>
@@ -208,6 +121,20 @@ const StockControls: React.FC<StockControlsProps> = ({
           </div>
         </div>
 
+        <Separator />
+
+        {/* Quick Actions */}
+        <div>
+          <h4 className="text-sm font-medium mb-3">Quick Actions</h4>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={centerStock}>
+              Center Stock
+            </Button>
+            <Button variant="outline" size="sm" onClick={resetToDefault}>
+              Reset to Default
+            </Button>
+          </div>
+        </div>
 
       </CardContent>
     </Card>

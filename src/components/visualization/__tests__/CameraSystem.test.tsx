@@ -12,36 +12,11 @@ import {
 } from '../CameraSystem';
 import { Canvas } from '@react-three/fiber';
 import { CAMERA_PRESETS } from '@/utils/visualization/cameraPresets';
-import type { MachineSettings } from '@/types/machine';
+import { createMockMachineSettings } from '@/test/mockMachineSettings';
 import type { Position3D } from '@/utils/visualization/machineGeometry';
 
 // Mock machine settings for testing
-const mockMachineSettings: MachineSettings = {
-  units: 'mm',
-  axes: {
-    X: {
-      positiveDirection: '+X',
-      negativeDirection: '-X',
-      polarity: 1,
-      min: -100,
-      max: 100
-    },
-    Y: {
-      positiveDirection: '+Y',
-      negativeDirection: '-Y',
-      polarity: 1,
-      min: -150,
-      max: 150
-    },
-    Z: {
-      positiveDirection: '+Z',
-      negativeDirection: '-Z',
-      polarity: 1,
-      min: -50,
-      max: 50
-    }
-  }
-};
+const mockMachineSettings = createMockMachineSettings();
 
 const mockTarget: Position3D = { x: 0, y: 0, z: 0 };
 
@@ -143,7 +118,6 @@ describe('CameraSystem Components', () => {
         <EnhancedOrbitControls
           target={mockTarget}
           machineSettings={mockMachineSettings}
-          machineOrientation="horizontal"
           onControlsReady={onControlsReady}
         />
       );
@@ -161,7 +135,6 @@ describe('CameraSystem Components', () => {
         <EnhancedOrbitControls
           target={mockTarget}
           machineSettings={mockMachineSettings}
-          machineOrientation="horizontal"
           onControlsReady={onControlsReady}
         />
       );
@@ -181,7 +154,6 @@ describe('CameraSystem Components', () => {
         <EnhancedOrbitControls
           target={mockTarget}
           machineSettings={mockMachineSettings}
-          machineOrientation="horizontal"
           onControlsReady={onControlsReady}
         />
       );
@@ -199,7 +171,6 @@ describe('CameraSystem Components', () => {
         <EnhancedOrbitControls
           target={mockTarget}
           machineSettings={mockMachineSettings}
-          machineOrientation="vertical"
           onControlsReady={onControlsReady}
         />
       );
@@ -217,7 +188,6 @@ describe('CameraSystem Components', () => {
         <EnhancedOrbitControls
           target={mockTarget}
           machineSettings={mockMachineSettings}
-          machineOrientation="horizontal"
           onControlsReady={onControlsReady}
         />
       );
@@ -228,7 +198,6 @@ describe('CameraSystem Components', () => {
         <EnhancedOrbitControls
           target={newTarget}
           machineSettings={mockMachineSettings}
-          machineOrientation="horizontal"
           onControlsReady={onControlsReady}
         />
       );
@@ -442,7 +411,6 @@ describe('CameraSystem Components', () => {
             <EnhancedOrbitControls
               target={mockTarget}
               machineSettings={mockMachineSettings}
-              machineOrientation="horizontal"
               onControlsReady={onControlsReady}
             />
             <CameraTracker onCameraUpdate={onCameraUpdate} />
