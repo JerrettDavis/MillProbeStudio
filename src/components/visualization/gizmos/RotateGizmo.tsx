@@ -32,10 +32,9 @@ export const RotateGizmo: React.FC<RotateGizmoProps> = ({
   onRotate,
   onDragStart,
   onDragEnd,
-  visible,
-  machineOrientation: _machineOrientation
+  visible
 }) => {
-  const { camera, raycaster, gl } = useThree();
+  const { camera, gl } = useThree();
   const groupRef = useRef<THREE.Group>(null);
   const [hoveredAxis, setHoveredAxis] = useState<'x' | 'y' | 'z' | null>(null);
   const [dragState, setDragState] = useState<{
@@ -45,13 +44,17 @@ export const RotateGizmo: React.FC<RotateGizmoProps> = ({
     lastAngle: number;
     center: THREE.Vector3;
     normal: THREE.Vector3;
+    hasMovedMouse: boolean;
+    startRotation: [number, number, number]; // Store the rotation when drag started
   }>({
     isDragging: false,
     axis: null,
     startAngle: 0,
     lastAngle: 0,
     center: new THREE.Vector3(),
-    normal: new THREE.Vector3()
+    normal: new THREE.Vector3(),
+    hasMovedMouse: false,
+    startRotation: [0, 0, 0]
   });
 
   // Define rotation ring configurations based on object constraints
@@ -98,6 +101,7 @@ export const RotateGizmo: React.FC<RotateGizmoProps> = ({
   }, [selectedObject]);
 
   // Handle pointer events
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handlePointerDown = useCallback((event: any, axis: 'x' | 'y' | 'z') => {
     event.stopPropagation();
     // Note: event.preventDefault() is not available in React Three Fiber events
@@ -105,112 +109,242 @@ export const RotateGizmo: React.FC<RotateGizmoProps> = ({
     const ringData = ringConfig.find(r => r.axis === axis);
     if (!ringData?.enabled) return;
 
-    // Calculate initial angle from center to mouse position
+    // Get mouse position in screen coordinates
     const rect = gl.domElement.getBoundingClientRect();
-    const mouse = new THREE.Vector2(
-      ((event.clientX - rect.left) / rect.width) * 2 - 1,
-      -((event.clientY - rect.top) / rect.height) * 2 + 1
+    const mouseScreen = new THREE.Vector2(
+      event.clientX - rect.left,
+      event.clientY - rect.top
     );
 
-    raycaster.setFromCamera(mouse, camera);
-    
-    // Create a plane for the rotation axis
-    const plane = new THREE.Plane(ringData.normal, 0);
-    const center = new THREE.Vector3(...position);
-    plane.setFromNormalAndCoplanarPoint(ringData.normal, center);
-    
-    const intersection = new THREE.Vector3();
-    if (raycaster.ray.intersectPlane(plane, intersection)) {
-      const toMouse = intersection.clone().sub(center);
-      const startAngle = Math.atan2(
-        toMouse.dot(getPerpendicularVector(ringData.normal)),
-        toMouse.dot(getSecondPerpendicularVector(ringData.normal))
-      );
+    // Calculate gizmo center in screen coordinates
+    const gizmoCenter = new THREE.Vector3(...position);
+    const gizmoCenterScreen = gizmoCenter.clone().project(camera);
+    const centerScreen = new THREE.Vector2(
+      (gizmoCenterScreen.x + 1) * rect.width / 2,
+      (-gizmoCenterScreen.y + 1) * rect.height / 2
+    );
 
-      setDragState({
-        isDragging: true,
-        axis,
-        startAngle,
-        lastAngle: startAngle,
-        center,
-        normal: ringData.normal
-      });
-
-      onDragStart?.();
-      gl.domElement.style.cursor = 'grabbing';
+    // Get the axis we're rotating around
+    const axisVector = new THREE.Vector3();
+    axisVector[axis === 'x' ? 'x' : axis === 'y' ? 'y' : 'z'] = 1;
+    
+    // Transform axis vector by current rotation to get the actual rotation axis in world space
+    const currentRotation = new THREE.Euler(...rotation);
+    const rotationMatrix = new THREE.Matrix4().makeRotationFromEuler(currentRotation);
+    const worldAxis = axisVector.clone().applyMatrix4(rotationMatrix).normalize();
+    
+    // Calculate two points on the ring circumference in world space to determine orientation
+    const ringRadius = 1.2;
+    const tangent1 = new THREE.Vector3();
+    const tangent2 = new THREE.Vector3();
+    
+    // Find two perpendicular vectors to the axis to create tangent directions
+    if (Math.abs(worldAxis.x) < 0.9) {
+      tangent1.crossVectors(worldAxis, new THREE.Vector3(1, 0, 0)).normalize();
+    } else {
+      tangent1.crossVectors(worldAxis, new THREE.Vector3(0, 1, 0)).normalize();
     }
-  }, [camera, raycaster, ringConfig, position, gl.domElement]);
+    tangent2.crossVectors(worldAxis, tangent1).normalize();
+    
+    // Create points on the ring circumference
+    const ringPoint1 = gizmoCenter.clone().add(tangent1.clone().multiplyScalar(ringRadius));
+    const ringPoint2 = gizmoCenter.clone().add(tangent2.clone().multiplyScalar(ringRadius));
+    
+    // Project ring points to screen space
+    const ringPoint1Screen = ringPoint1.clone().project(camera);
+    const ringPoint2Screen = ringPoint2.clone().project(camera);
+    
+    // Convert to pixel coordinates
+    const point1Screen = new THREE.Vector2(
+      (ringPoint1Screen.x + 1) * rect.width / 2,
+      (-ringPoint1Screen.y + 1) * rect.height / 2
+    );
+    const point2Screen = new THREE.Vector2(
+      (ringPoint2Screen.x + 1) * rect.width / 2,
+      (-ringPoint2Screen.y + 1) * rect.height / 2
+    );
+    
+    // Calculate the ring's orientation in screen space
+    const ringDirection = point2Screen.clone().sub(point1Screen).normalize();
+    const ringNormal = new THREE.Vector2(-ringDirection.y, ringDirection.x); // Perpendicular to ring direction
+    
+    // Calculate initial angle in the ring's coordinate system
+    const currentMouseVector = mouseScreen.clone().sub(centerScreen);
+    const startAngle = Math.atan2(
+      currentMouseVector.dot(ringNormal),
+      currentMouseVector.dot(ringDirection)
+    );
+
+    setDragState({
+      isDragging: true,
+      axis,
+      startAngle,
+      lastAngle: startAngle,
+      center: gizmoCenter,
+      normal: ringData.normal, // Store original normal for rotation calculation
+      hasMovedMouse: false,
+      startRotation: [...rotation]
+    });
+
+    onDragStart?.();
+    gl.domElement.style.cursor = 'grabbing';
+  }, [camera, gl.domElement, ringConfig, position, rotation, onDragStart]);
 
   const handlePointerUp = useCallback(() => {
     if (dragState.isDragging) {
-      setDragState(prev => ({ ...prev, isDragging: false, axis: null }));
+      setDragState(prev => ({ 
+        ...prev, 
+        isDragging: false, 
+        axis: null,
+        hasMovedMouse: false,
+        startRotation: [0, 0, 0]
+      }));
       onDragEnd?.();
       gl.domElement.style.cursor = 'default';
     }
   }, [dragState.isDragging, onDragEnd, gl.domElement]);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handlePointerMove = useCallback((event: any) => {
     if (!dragState.isDragging || !dragState.axis) return;
 
-    // Calculate current mouse angle
+    // Get current mouse position in screen coordinates
     const rect = gl.domElement.getBoundingClientRect();
-    const mouse = new THREE.Vector2(
-      ((event.clientX - rect.left) / rect.width) * 2 - 1,
-      -((event.clientY - rect.top) / rect.height) * 2 + 1
+    const mouseScreen = new THREE.Vector2(
+      event.clientX - rect.left,
+      event.clientY - rect.top
     );
 
-    raycaster.setFromCamera(mouse, camera);
-    
-    const plane = new THREE.Plane(dragState.normal, 0);
-    plane.setFromNormalAndCoplanarPoint(dragState.normal, dragState.center);
-    
-    const intersection = new THREE.Vector3();
-    if (raycaster.ray.intersectPlane(plane, intersection)) {
-      const toMouse = intersection.clone().sub(dragState.center);
-      const currentAngle = Math.atan2(
-        toMouse.dot(getPerpendicularVector(dragState.normal)),
-        toMouse.dot(getSecondPerpendicularVector(dragState.normal))
-      );
+    // Calculate gizmo center in screen coordinates  
+    const gizmoCenterScreen = dragState.center.clone().project(camera);
+    const centerScreen = new THREE.Vector2(
+      (gizmoCenterScreen.x + 1) * rect.width / 2,
+      (-gizmoCenterScreen.y + 1) * rect.height / 2
+    );
 
-      // Calculate incremental rotation from last angle
-      let deltaAngle = currentAngle - dragState.lastAngle;
+    // Get the axis we're rotating around
+    const axisVector = new THREE.Vector3();
+    axisVector[dragState.axis === 'x' ? 'x' : dragState.axis === 'y' ? 'y' : 'z'] = 1;
+    
+    // Transform axis vector by current rotation to get the actual rotation axis in world space
+    const currentRotation = new THREE.Euler(...rotation);
+    const rotationMatrix = new THREE.Matrix4().makeRotationFromEuler(currentRotation);
+    const worldAxis = axisVector.clone().applyMatrix4(rotationMatrix).normalize();
+    
+    // Convert world axis to screen space to determine the rotation plane orientation
+    const worldAxisScreen = worldAxis.clone().project(camera);
+    
+    // Calculate two points on the ring circumference in world space
+    const ringRadius = 1.2;
+    const tangent1 = new THREE.Vector3();
+    const tangent2 = new THREE.Vector3();
+    
+    // Find two perpendicular vectors to the axis to create tangent directions
+    if (Math.abs(worldAxis.x) < 0.9) {
+      tangent1.crossVectors(worldAxis, new THREE.Vector3(1, 0, 0)).normalize();
+    } else {
+      tangent1.crossVectors(worldAxis, new THREE.Vector3(0, 1, 0)).normalize();
+    }
+    tangent2.crossVectors(worldAxis, tangent1).normalize();
+    
+    // Create points on the ring circumference
+    const ringPoint1 = dragState.center.clone().add(tangent1.clone().multiplyScalar(ringRadius));
+    const ringPoint2 = dragState.center.clone().add(tangent2.clone().multiplyScalar(ringRadius));
+    
+    // Project ring points to screen space
+    const ringPoint1Screen = ringPoint1.clone().project(camera);
+    const ringPoint2Screen = ringPoint2.clone().project(camera);
+    
+    // Convert to pixel coordinates
+    const point1Screen = new THREE.Vector2(
+      (ringPoint1Screen.x + 1) * rect.width / 2,
+      (-ringPoint1Screen.y + 1) * rect.height / 2
+    );
+    const point2Screen = new THREE.Vector2(
+      (ringPoint2Screen.x + 1) * rect.width / 2,
+      (-ringPoint2Screen.y + 1) * rect.height / 2
+    );
+    
+    // Calculate the ring's orientation in screen space
+    const ringDirection = point2Screen.clone().sub(point1Screen).normalize();
+    const ringNormal = new THREE.Vector2(-ringDirection.y, ringDirection.x); // Perpendicular to ring direction
+    
+    // Calculate mouse movement relative to ring center
+    const currentMouseVector = mouseScreen.clone().sub(centerScreen);
+    const lastMouseVector = new THREE.Vector2();
+    
+    // Calculate previous mouse position from stored angle
+    lastMouseVector.x = Math.cos(dragState.lastAngle) * currentMouseVector.length();
+    lastMouseVector.y = Math.sin(dragState.lastAngle) * currentMouseVector.length();
+    
+    // Calculate current angle in the ring's coordinate system
+    const currentAngle = Math.atan2(
+      currentMouseVector.dot(ringNormal),
+      currentMouseVector.dot(ringDirection)
+    );
+    
+    // Calculate incremental rotation from last angle
+    let deltaAngle = currentAngle - dragState.lastAngle;
+    
+    // Handle angle wrapping (crossing 0/2π boundary)
+    if (deltaAngle > Math.PI) {
+      deltaAngle -= 2 * Math.PI;
+    } else if (deltaAngle < -Math.PI) {
+      deltaAngle += 2 * Math.PI;
+    }
+    
+    // Only start applying rotation after mouse has moved significantly
+    if (!dragState.hasMovedMouse) {
+      // Check if mouse has moved enough to start rotation
+      const angleDifferenceFromStart = Math.abs(currentAngle - dragState.startAngle);
+      const minAngleThreshold = 0.02; // Minimum angle movement to start rotation (about 1 degree)
       
-      // Handle angle wrapping (crossing 0/2π boundary)
-      if (deltaAngle > Math.PI) {
-        deltaAngle -= 2 * Math.PI;
-      } else if (deltaAngle < -Math.PI) {
-        deltaAngle += 2 * Math.PI;
-      }
-      
-      // Only apply rotation if there's meaningful change
-      if (Math.abs(deltaAngle) > 0.005) {
-        // Scale down the rotation to make it less sensitive, but not too much
-        const scaledDelta = deltaAngle * 0.8;
-        
-        // Create rotation euler based on axis
-        const deltaRotation = new THREE.Euler();
-        switch (dragState.axis) {
-          case 'x':
-            deltaRotation.x = scaledDelta;
-            break;
-          case 'y':
-            deltaRotation.y = scaledDelta;
-            break;
-          case 'z':
-            deltaRotation.z = scaledDelta;
-            break;
-        }
-
-        onRotate(deltaRotation, dragState.axis);
-        
-        // Update last angle for next frame
+      if (angleDifferenceFromStart > minAngleThreshold) {
+        // Mouse has moved enough, start tracking movements
         setDragState(prev => ({
           ...prev,
-          lastAngle: currentAngle
+          hasMovedMouse: true,
+          lastAngle: currentAngle // Reset lastAngle to current to avoid jump
         }));
       }
+      // Don't send any rotation updates until mouse has moved significantly
+      return;
     }
-  }, [dragState, camera, raycaster, onRotate, gl.domElement]);
+    
+    // Only apply rotation if there's meaningful change
+    if (Math.abs(deltaAngle) > 0.005) {
+      // Scale the rotation for better sensitivity
+      let scaledDelta = deltaAngle * 1.6;
+      
+      // Determine if we need to flip the rotation direction based on the camera view
+      // If the axis is pointing toward the camera, we need to flip the rotation
+      if (worldAxisScreen.z > 0) {
+        scaledDelta = -scaledDelta;
+      }
+      
+      // Create rotation euler based on the axis
+      const deltaRotation = new THREE.Euler();
+      switch (dragState.axis) {
+        case 'x':
+          deltaRotation.x = scaledDelta;
+          break;
+        case 'y':
+          deltaRotation.y = scaledDelta;
+          break;
+        case 'z':
+          deltaRotation.z = scaledDelta;
+          break;
+      }
+
+      onRotate(deltaRotation, dragState.axis);
+      
+      // Update last angle for next frame
+      setDragState(prev => ({
+        ...prev,
+        lastAngle: currentAngle
+      }));
+    }
+  }, [dragState, camera, onRotate, gl.domElement, rotation]);
 
   // Handle mouse hover
   const handlePointerEnter = useCallback((axis: 'x' | 'y' | 'z') => {
@@ -234,6 +368,22 @@ export const RotateGizmo: React.FC<RotateGizmoProps> = ({
       setHoveredAxis(null);
     }
   }, [dragState.isDragging]);
+
+  // Reset drag state if rotation changes significantly while not dragging
+  React.useEffect(() => {
+    if (!dragState.isDragging) {
+      // Only reset if rotation has changed from what we stored
+      const rotationChanged = dragState.startRotation.some((val, idx) => 
+        Math.abs(val - rotation[idx]) > 0.01
+      );
+      if (rotationChanged) {
+        setDragState(prev => ({
+          ...prev,
+          startRotation: [...rotation]
+        }));
+      }
+    }
+  }, [rotation, dragState.isDragging, dragState.startRotation]);
 
   // Add global event listeners for drag operations
   React.useEffect(() => {
@@ -339,19 +489,3 @@ export const RotateGizmo: React.FC<RotateGizmoProps> = ({
     </group>
   );
 };
-
-// Helper functions to get perpendicular vectors for angle calculations
-function getPerpendicularVector(normal: THREE.Vector3): THREE.Vector3 {
-  if (Math.abs(normal.x) > 0.9) {
-    return new THREE.Vector3(0, 1, 0);
-  } else {
-    return new THREE.Vector3(1, 0, 0);
-  }
-}
-
-function getSecondPerpendicularVector(normal: THREE.Vector3): THREE.Vector3 {
-  const first = getPerpendicularVector(normal);
-  const second = new THREE.Vector3();
-  second.crossVectors(normal, first).normalize();
-  return second;
-}

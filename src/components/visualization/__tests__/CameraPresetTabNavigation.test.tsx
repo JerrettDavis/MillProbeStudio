@@ -135,9 +135,25 @@ describe('Camera Preset Tab Navigation', () => {
       clearCameraPreset: mockCameraActions.clearCameraPreset
     }));
 
+    // Mock the visualization controls hook
+    const mockUseVisualizationControls = vi.fn(() => ({
+      stockSize: [100, 100, 50] as [number, number, number],
+      stockPosition: [0, 0, 0] as [number, number, number],
+      stockRotation: [0, 0, 0] as [number, number, number],
+      probePosition: { X: 0, Y: 0, Z: 0 },
+      modelFile: null,
+      isLoadingModelFile: false,
+      updateStockSize: vi.fn(),
+      updateStockPosition: vi.fn(),
+      updateStockRotation: vi.fn(),
+      updateProbePosition: vi.fn(),
+      updateModelFile: vi.fn()
+    }));
+
     // Apply the mocks
-    const { useCameraControlsWithStore } = await import('@/store/hooks');
+    const { useCameraControlsWithStore, useVisualizationControls } = await import('@/store/hooks');
     vi.mocked(useCameraControlsWithStore).mockImplementation(mockUseCameraControlsWithStore);
+    vi.mocked(useVisualizationControls).mockImplementation(mockUseVisualizationControls);
     
     // Clear localStorage before each test
     localStorage.clear();

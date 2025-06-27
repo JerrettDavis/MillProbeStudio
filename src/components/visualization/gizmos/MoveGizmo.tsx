@@ -23,9 +23,9 @@ interface GizmoAxis {
 }
 
 // Throttle helper
-const throttle = (fn: Function, delay: number) => {
+const throttle = <T extends unknown[]>(fn: (...args: T) => void, delay: number) => {
   let lastCall = 0;
-  return (...args: any[]) => {
+  return (...args: T) => {
     const now = Date.now();
     if (now - lastCall >= delay) {
       lastCall = now;
@@ -54,6 +54,7 @@ export const MoveGizmo: React.FC<MoveGizmoProps> = ({
     });
 
     // Throttled version of onMove to prevent excessive updates
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     const throttledOnMove = useCallback(
         throttle((delta: THREE.Vector3, axis?: 'x' | 'y' | 'z') => {
             onMove(delta, axis);
@@ -84,6 +85,7 @@ export const MoveGizmo: React.FC<MoveGizmoProps> = ({
         }
     }, [selectedObject, machineOrientation]);
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handlePointerDown = useCallback((event: any, axis: 'x' | 'y' | 'z') => {
         event.stopPropagation();
         const rect = gl.domElement.getBoundingClientRect();
@@ -108,6 +110,7 @@ export const MoveGizmo: React.FC<MoveGizmoProps> = ({
         }
     }, [dragState.isDragging, gl.domElement, onDragEnd]);
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handlePointerMove = useCallback((event: any) => {
         if (!dragState.isDragging || !dragState.axis) return;
 
@@ -160,7 +163,7 @@ export const MoveGizmo: React.FC<MoveGizmoProps> = ({
             delta[dragState.axis] = movement;
             throttledOnMove(delta, dragState.axis);
         }
-    }, [dragState, position, camera, throttledOnMove, gl.domElement]);
+    }, [dragState, position, camera, throttledOnMove, gl.domElement, machineOrientation]);
 
     const handlePointerEnter = useCallback((axis: 'x' | 'y' | 'z') => {
         if (!dragState.isDragging) {

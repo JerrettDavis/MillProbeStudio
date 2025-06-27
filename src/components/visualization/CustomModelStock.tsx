@@ -165,6 +165,7 @@ export const CustomModelStock: React.FC<CustomModelStockProps> = ({
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [objectUrl, modelUrl, size, modelFile]); // Removed onModelLoad and onModelError from deps
 
   // Cleanup geometry when component unmounts
@@ -194,7 +195,7 @@ export const CustomModelStock: React.FC<CustomModelStockProps> = ({
     }
   }, [onHover]);
 
-  const handlePointerDown = useCallback((event: any) => {
+  const handlePointerDown = useCallback((event: React.PointerEvent) => {
     event?.stopPropagation?.();
     if (onSelect) {
       onSelect();

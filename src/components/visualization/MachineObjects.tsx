@@ -27,7 +27,7 @@ export const InteractiveStock: React.FC<InteractiveStockProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
-  const handlePointerDown = useCallback((event: any) => {
+  const handlePointerDown = useCallback((event: React.PointerEvent) => {
     event?.stopPropagation?.();
     setIsDragging(true);
     if (onSelect) {
@@ -109,7 +109,7 @@ export const ToolVisualization: React.FC<ToolVisualizationProps> = ({
 }) => {
   const [isHovered, setIsHovered] = useState(false);
 
-  const handlePointerDown = useCallback((event: any) => {
+  const handlePointerDown = useCallback((event: React.PointerEvent) => {
     event?.stopPropagation?.();
     if (onSelect) {
       onSelect();
@@ -229,7 +229,7 @@ export const HorizontalStage: React.FC<HorizontalStageProps> = ({
   onSelect,
   isSelected = false
 }) => {
-  const handlePointerDown = useCallback((event: any) => {
+  const handlePointerDown = useCallback((event: React.PointerEvent) => {
     event?.stopPropagation?.();
     if (onSelect) {
       onSelect();

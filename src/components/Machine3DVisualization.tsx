@@ -81,7 +81,8 @@ const Machine3DVisualization: React.FC<Machine3DVisualizationProps> = ({
   // Use store for stock position/rotation controls
   const {
     updateStockPosition,
-    updateStockRotation
+    updateStockRotation,
+    stockRotation: currentStockRotation
   } = useVisualizationControls();
 
   // Calculate machine geometry with memoization using props directly
@@ -121,17 +122,17 @@ const Machine3DVisualization: React.FC<Machine3DVisualizationProps> = ({
   const handleStockRotationChange = useCallback((deltaRotation: [number, number, number]) => {
     console.log('[Machine3DVisualization] Stock rotation delta:', deltaRotation);
     
-    // Calculate new absolute rotation by adding delta to current rotation
+    // Calculate new absolute rotation by adding delta to current rotation from store
     const newRotation: [number, number, number] = [
-      providedStockRotation[0] + deltaRotation[0],
-      providedStockRotation[1] + deltaRotation[1], 
-      providedStockRotation[2] + deltaRotation[2]
+      currentStockRotation[0] + deltaRotation[0],
+      currentStockRotation[1] + deltaRotation[1], 
+      currentStockRotation[2] + deltaRotation[2]
     ];
     
     console.log('[Machine3DVisualization] New absolute rotation:', newRotation);
     updateStockRotation(newRotation);
     onStockRotationChange?.(newRotation);
-  }, [updateStockRotation, onStockRotationChange, providedStockRotation]);
+  }, [updateStockRotation, onStockRotationChange, currentStockRotation]);
 
   const handleManualCameraChange = useCallback(() => {
     clearCameraPreset();

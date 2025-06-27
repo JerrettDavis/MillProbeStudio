@@ -3,11 +3,12 @@ import { render, fireEvent } from '@testing-library/react';
 import { Canvas } from '@react-three/fiber';
 import { MoveGizmo } from '../MoveGizmo';
 import * as THREE from 'three';
+import { vi, describe, it, beforeEach, expect } from 'vitest';
 
 describe('MoveGizmo Movement Logic', () => {
-  const mockOnMove = jest.fn();
-  const mockOnDragStart = jest.fn();
-  const mockOnDragEnd = jest.fn();
+  const mockOnMove = vi.fn();
+  const mockOnDragStart = vi.fn();
+  const mockOnDragEnd = vi.fn();
 
   const defaultProps = {
     position: [0, 0, 0] as [number, number, number],
@@ -20,7 +21,7 @@ describe('MoveGizmo Movement Logic', () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('should move only on X-axis when dragging X handle horizontally', () => {

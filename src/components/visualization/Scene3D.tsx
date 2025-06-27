@@ -95,6 +95,17 @@ export const Scene3D: React.FC<Scene3DProps> = ({
   const [isAnimating, setIsAnimating] = useState(false);
   const [isGizmoDragging, setIsGizmoDragging] = useState(false);
   
+  // Local rotation state for smooth gizmo interaction
+  const [localRotationState, setLocalRotationState] = useState<{
+    isActive: boolean;
+    originalRotation: [number, number, number];
+    accumulatedRotation: [number, number, number];
+  }>({ 
+    isActive: false, 
+    originalRotation: [0, 0, 0],
+    accumulatedRotation: [0, 0, 0] 
+  });
+  
   // Scene interaction hook
   const sceneInteraction = useSceneInteraction({
     onStockPositionChange,
@@ -248,21 +259,56 @@ export const Scene3D: React.FC<Scene3DProps> = ({
   // Gizmo drag state handlers
   const handleGizmoDragStart = useCallback(() => {
     setIsGizmoDragging(true);
-  }, []);
+    // Store original rotation and initialize accumulated rotation when drag starts
+    setLocalRotationState({
+      isActive: true,
+      originalRotation: [...stockRotation],
+      accumulatedRotation: [...stockRotation]
+    });
+  }, [stockRotation]);
 
   const handleGizmoDragEnd = useCallback(() => {
     setIsGizmoDragging(false);
-  }, []);
+    
+    // Calculate delta rotation from original to accumulated and commit to store
+    if (localRotationState.isActive && onStockRotationChange) {
+      const deltaRotation: [number, number, number] = [
+        localRotationState.accumulatedRotation[0] - localRotationState.originalRotation[0],
+        localRotationState.accumulatedRotation[1] - localRotationState.originalRotation[1],
+        localRotationState.accumulatedRotation[2] - localRotationState.originalRotation[2]
+      ];
+      onStockRotationChange(deltaRotation);
+    }
+    
+    // Reset local rotation state
+    setLocalRotationState({ 
+      isActive: false, 
+      originalRotation: [0, 0, 0],
+      accumulatedRotation: [0, 0, 0] 
+    });
+  }, [localRotationState, onStockRotationChange]);
 
-  const handleGizmoRotate = useCallback((delta: THREE.Euler, _axis?: 'x' | 'y' | 'z') => {
+  const handleGizmoRotate = useCallback((delta: THREE.Euler) => {
     const selectedObject = sceneInteraction.interactionState.selectedObject;
     
     switch (selectedObject) {
       case 'stock':
       case 'model':
-        if (onStockRotationChange) {
-          // Apply incremental rotation - this callback should accumulate the rotation
-          onStockRotationChange([delta.x, delta.y, delta.z]);
+        if (localRotationState.isActive) {
+          // During drag: accumulate rotation incrementally from the current position
+          setLocalRotationState(prev => ({
+            ...prev,
+            accumulatedRotation: [
+              prev.accumulatedRotation[0] + delta.x,
+              prev.accumulatedRotation[1] + delta.y,
+              prev.accumulatedRotation[2] + delta.z
+            ]
+          }));
+        } else {
+          // If not in drag state, apply rotation directly to store (fallback)
+          if (onStockRotationChange) {
+            onStockRotationChange([delta.x, delta.y, delta.z]);
+          }
         }
         break;
         
@@ -270,8 +316,31 @@ export const Scene3D: React.FC<Scene3DProps> = ({
     }
   }, [
     sceneInteraction.interactionState.selectedObject,
+    localRotationState.isActive,
     onStockRotationChange
   ]);
+
+  // Use local accumulated rotation during drag, store rotation otherwise
+  const effectiveStockRotation = useMemo((): [number, number, number] => {
+    return localRotationState.isActive 
+      ? localRotationState.accumulatedRotation 
+      : stockRotation;
+  }, [localRotationState.isActive, localRotationState.accumulatedRotation, stockRotation]);
+
+  // Cleanup local rotation state if component unmounts during drag
+  React.useEffect(() => {
+    return () => {
+      if (localRotationState.isActive && onStockRotationChange) {
+        // Calculate and commit any pending rotation changes on unmount
+        const deltaRotation: [number, number, number] = [
+          localRotationState.accumulatedRotation[0] - localRotationState.originalRotation[0],
+          localRotationState.accumulatedRotation[1] - localRotationState.originalRotation[1],
+          localRotationState.accumulatedRotation[2] - localRotationState.originalRotation[2]
+        ];
+        onStockRotationChange(deltaRotation);
+      }
+    };
+  }, [localRotationState.isActive, localRotationState.accumulatedRotation, localRotationState.originalRotation, onStockRotationChange]);
 
   // Calculate gizmo position based on selected object
   const gizmoPosition = useMemo((): [number, number, number] => {
@@ -305,11 +374,11 @@ export const Scene3D: React.FC<Scene3DProps> = ({
     switch (selectedObject) {
       case 'stock':
       case 'model':
-        return stockRotation;
+        return effectiveStockRotation;
       default:
         return [0, 0, 0];
     }
-  }, [sceneInteraction.interactionState.selectedObject, stockRotation]);
+  }, [sceneInteraction.interactionState.selectedObject, effectiveStockRotation]);
 
   // Store reference to controls methods
   const controlsMethodsRef = useRef<{ setPosition: (position: Position3D) => void } | null>(null);
@@ -526,7 +595,7 @@ export const Scene3D: React.FC<Scene3DProps> = ({
             key={modelFile.name + modelFile.size + modelFile.lastModified}
             position={stockWorldPosition} 
             size={stockSize}
-            rotation={stockRotation}
+            rotation={effectiveStockRotation}
             modelFile={modelFile}
             onHover={showCoordinateHover && !isGizmoDragging ? setHoverPosition : undefined}
             onModelLoad={handleModelLoad}
@@ -538,7 +607,7 @@ export const Scene3D: React.FC<Scene3DProps> = ({
           <InteractiveStock 
             position={stockWorldPosition} 
             size={stockSize}
-            rotation={stockRotation}
+            rotation={effectiveStockRotation}
             onHover={showCoordinateHover && !isGizmoDragging ? setHoverPosition : undefined}
             onSelect={!isGizmoDragging ? handleStockSelect : undefined}
             isSelected={sceneInteraction.interactionState.selectedObject === 'stock'}

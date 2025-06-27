@@ -113,7 +113,7 @@ export const useSceneInteraction = ({
     raycaster.setFromCamera(mousePosition.current, camera);
 
     // Get world position from intersection or object
-    let worldPosition = new THREE.Vector3();
+    const worldPosition = new THREE.Vector3();
     if (intersectedObject) {
       intersectedObject.getWorldPosition(worldPosition);
     } else {
@@ -149,6 +149,7 @@ export const useSceneInteraction = ({
     } else if (interactionState.selectedTool === 'rotate') {
       handleRotateOperation(mouseDelta);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [interactionState]);
 
   // Handle mouse up
