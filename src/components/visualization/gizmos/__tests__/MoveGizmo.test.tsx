@@ -1,8 +1,6 @@
-import React from 'react';
 import { render, fireEvent } from '@testing-library/react';
 import { Canvas } from '@react-three/fiber';
 import { MoveGizmo } from '../MoveGizmo';
-import * as THREE from 'three';
 import { vi, describe, it, beforeEach, expect } from 'vitest';
 
 describe('MoveGizmo Movement Logic', () => {
