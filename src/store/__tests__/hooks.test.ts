@@ -38,7 +38,12 @@ const mockProbeSequenceSettings = {
 
 const mockVisualizationSettings = {
   stockSize: [25, 25, 10] as [number, number, number],
-  stockPosition: [0, 0, 5] as [number, number, number]
+  stockPosition: [0, 0, 5] as [number, number, number],
+  showAxisLabels: true,
+  showCoordinateHover: true,
+  modelFile: null as File | null,
+  serializedModelFile: null,
+  isLoadingModelFile: false
 };
 
 const mockCameraSettings = {
@@ -61,7 +66,8 @@ const mockProbeActions = {
 };
 
 const mockVisualizationActions = {
-  setVisualizationSettings: vi.fn()
+  setVisualizationSettings: vi.fn(),
+  setModelFile: vi.fn()
 };
 
 const mockCameraActions = {

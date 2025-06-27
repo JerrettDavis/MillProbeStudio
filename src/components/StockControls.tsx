@@ -4,6 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Dimensional3DInput } from "@/components/ui/DimensionalInput";
+import { ModelFileUpload } from "@/components/ui/ModelFileUpload";
 import type { MachineSettings } from '@/types/machine';
 
 interface StockControlsProps {
@@ -13,6 +14,9 @@ interface StockControlsProps {
   onStockPositionChange: (position: [number, number, number]) => void;
   units: string;
   machineSettings: MachineSettings;
+  modelFile?: File | null;
+  onModelFileChange?: (file: File | null) => void;
+  isLoadingModelFile?: boolean;
 }
 
 const StockControls: React.FC<StockControlsProps> = ({
@@ -21,7 +25,10 @@ const StockControls: React.FC<StockControlsProps> = ({
   onStockSizeChange,
   onStockPositionChange,
   units,
-  machineSettings
+  machineSettings,
+  modelFile,
+  onModelFileChange,
+  isLoadingModelFile = false
 }) => {
   // Extract machine orientation and stage dimensions from machine settings
   const machineOrientation = machineSettings.machineOrientation;
@@ -122,6 +129,20 @@ const StockControls: React.FC<StockControlsProps> = ({
         </div>
 
         <Separator />
+
+        {/* Custom 3D Model Upload */}
+        {onModelFileChange && (
+          <>
+            <div>
+              <ModelFileUpload
+                currentFile={modelFile || null}
+                onFileSelected={onModelFileChange}
+                isProcessing={isLoadingModelFile}
+              />
+            </div>
+            <Separator />
+          </>
+        )}
 
         {/* Quick Actions */}
         <div>

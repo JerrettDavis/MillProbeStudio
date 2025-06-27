@@ -128,22 +128,35 @@ export const useVisualizationControls = () => {
     [probeActions]
   );
 
+  const updateModelFile = useCallback(
+    async (file: File | null) => {
+      await visualizationActions.setModelFile(file);
+    },
+    [visualizationActions]
+  );
+
   return useMemo(
     () => ({
       stockSize: visualizationSettings.stockSize,
       stockPosition: visualizationSettings.stockPosition,
       probePosition: probeSequenceSettings.initialPosition,
+      modelFile: visualizationSettings.modelFile,
+      isLoadingModelFile: visualizationSettings.isLoadingModelFile,
       updateStockSize,
       updateStockPosition,
       updateProbePosition,
+      updateModelFile,
     }),
     [
       visualizationSettings.stockSize,
       visualizationSettings.stockPosition,
       probeSequenceSettings.initialPosition,
+      visualizationSettings.modelFile,
+      visualizationSettings.isLoadingModelFile,
       updateStockSize,
       updateStockPosition,
       updateProbePosition,
+      updateModelFile,
     ]
   );
 };

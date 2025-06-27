@@ -12,6 +12,7 @@ export interface VisualizationState {
   currentPreset: CameraPreset;
   cameraPosition: { x: number; y: number; z: number };
   pivotMode: 'tool' | 'origin';
+  modelFile: File | null;
 }
 
 export interface VisualizationActions {
@@ -23,6 +24,7 @@ export interface VisualizationActions {
   setCurrentPreset: (preset: CameraPreset) => void;
   setCameraPosition: (position: { x: number; y: number; z: number }) => void;
   setPivotMode: (mode: 'tool' | 'origin') => void;
+  setModelFile: (file: File | null) => void;
   resetDefaults: () => void;
 }
 
@@ -67,6 +69,7 @@ export const useVisualizationState = ({
   const [currentPreset, setCurrentPreset] = useState<CameraPreset>('home');
   const [cameraPosition, setCameraPosition] = useState({ x: 0, y: 0, z: 0 });
   const [pivotMode, setPivotMode] = useState<'tool' | 'origin'>('tool');
+  const [modelFile, setModelFile] = useState<File | null>(null);
   
   const [probePosition, setProbePosition] = useState<{ X: number; Y: number; Z: number }>(() => {
     return probeSequenceSettings?.initialPosition || { X: 0, Y: 0, Z: 0 };
@@ -81,6 +84,7 @@ export const useVisualizationState = ({
     setProbePosition(probeSequenceSettings?.initialPosition || { X: 0, Y: 0, Z: 0 });
     setCurrentPreset('home');
     setPivotMode('tool');
+    setModelFile(null);
   }, [
     initialStockSize,
     defaultStockPosition,
@@ -97,7 +101,8 @@ export const useVisualizationState = ({
     probePosition,
     currentPreset,
     cameraPosition,
-    pivotMode
+    pivotMode,
+    modelFile
   };
 
   const actions: VisualizationActions = {
@@ -109,6 +114,7 @@ export const useVisualizationState = ({
     setCurrentPreset,
     setCameraPosition,
     setPivotMode,
+    setModelFile,
     resetDefaults
   };
 

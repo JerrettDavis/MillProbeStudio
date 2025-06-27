@@ -19,6 +19,7 @@ export interface Machine3DVisualizationProps {
   onStockPositionChange?: (position: [number, number, number]) => void;
   showAxisLabels?: boolean;
   showCoordinateHover?: boolean;
+  modelFile?: File | null;
 }
 
 /**
@@ -32,7 +33,8 @@ const Machine3DVisualization: React.FC<Machine3DVisualizationProps> = ({
   stockSize: providedStockSize,
   stockPosition: providedStockPosition,
   showAxisLabels = true,
-  showCoordinateHover = true
+  showCoordinateHover = true,
+  modelFile
 }) => {
   // Use store for camera state management
   const {
@@ -120,6 +122,7 @@ const Machine3DVisualization: React.FC<Machine3DVisualizationProps> = ({
               onManualCameraChange={handleManualCameraChange}
               onAnimationStateChange={handleAnimationStateChange}
               pivotMode={pivotMode}
+              modelFile={modelFile}
             />
           </Canvas>
           

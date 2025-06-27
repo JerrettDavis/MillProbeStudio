@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useThree } from '@react-three/fiber';
+import * as THREE from 'three';
 import { MACHINE_ORIENTATION_CONFIGS } from '@/config/visualization/visualizationConfig';
 import { 
   InteractiveStock, 
@@ -7,6 +8,7 @@ import {
   MachineTable, 
   HorizontalStage 
 } from './MachineObjects';
+import { CustomModelStock } from './CustomModelStock';
 import { 
   CoordinateAxes, 
   EnhancedAxisLabels, 
@@ -42,6 +44,7 @@ export interface Scene3DProps {
   onManualCameraChange?: () => void;
   onAnimationStateChange?: (isAnimating: boolean) => void; // Add animation state callback
   pivotMode: 'tool' | 'origin';
+  modelFile?: File | null; // Add support for custom 3D model file
 }
 
 /**
@@ -60,11 +63,21 @@ export const Scene3D: React.FC<Scene3DProps> = ({
   onControlsReady,
   onManualCameraChange,
   onAnimationStateChange,
-  pivotMode
+  pivotMode,
+  modelFile
 }) => {
   const { camera } = useThree();
   const [hoverPosition, setHoverPosition] = useState<[number, number, number] | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
+  
+  // Memoize model callbacks to prevent infinite reloads
+  const handleModelLoad = useCallback((boundingBox: THREE.Box3) => {
+    console.info('Model loaded with bounding box:', boundingBox);
+  }, []);
+  
+  const handleModelError = useCallback((error: string) => {
+    console.error('Error loading model:', error);
+  }, []);
   
   // Extract machine orientation and stage dimensions from machine settings
   const machineOrientation = machineSettings.machineOrientation;
@@ -295,11 +308,23 @@ export const Scene3D: React.FC<Scene3DProps> = ({
         />
 
         {/* Stock */}
-        <InteractiveStock 
-          position={stockWorldPosition} 
-          size={stockSize}
-          onHover={showCoordinateHover ? setHoverPosition : undefined}
-        />
+        {modelFile ? (
+          <CustomModelStock 
+            key={modelFile.name + modelFile.size + modelFile.lastModified}
+            position={stockWorldPosition} 
+            size={stockSize}
+            modelFile={modelFile}
+            onHover={showCoordinateHover ? setHoverPosition : undefined}
+            onModelLoad={handleModelLoad}
+            onModelError={handleModelError}
+          />
+        ) : (
+          <InteractiveStock 
+            position={stockWorldPosition} 
+            size={stockSize}
+            onHover={showCoordinateHover ? setHoverPosition : undefined}
+          />
+        )}
 
         {/* Coordinate hover display */}
         {showCoordinateHover && hoverPosition && (
