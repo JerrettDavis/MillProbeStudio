@@ -10,6 +10,8 @@ import type {
   ProbeSequenceSettings,
   AxisConfig 
 } from '@/types/machine';
+import type { SerializedFile } from '@/utils/fileStorage';
+import { deserializeFile, serializeFile, isFileSizeStorable } from '@/utils/fileStorage';
 
 // Default machine settings
 const defaultMachineSettings: MachineSettings = {
@@ -71,8 +73,12 @@ interface AppState {
   visualizationSettings: {
     stockSize: [number, number, number];
     stockPosition: [number, number, number];
+    stockRotation: [number, number, number];
     showAxisLabels: boolean;
     showCoordinateHover: boolean;
+    modelFile: File | null;
+    serializedModelFile: SerializedFile | null; // For persistence
+    isLoadingModelFile: boolean; // Loading state for file operations
   };
   
   // Camera state (persisted)
@@ -112,6 +118,7 @@ interface AppActions {
   
   // Visualization actions
   setVisualizationSettings: (settings: Partial<AppState['visualizationSettings']>) => void;
+  setModelFile: (file: File | null) => Promise<void>;
   
   // Camera actions
   setCameraPosition: (position: { x: number; y: number; z: number }) => void;
@@ -138,8 +145,12 @@ export const useAppStore = create<AppState & AppActions>()(
       visualizationSettings: {
         stockSize: [25, 25, 10],
         stockPosition: [0, 0, 0],
+        stockRotation: [0, 0, 0],
         showAxisLabels: true,
-        showCoordinateHover: true
+        showCoordinateHover: true,
+        modelFile: null,
+        serializedModelFile: null,
+        isLoadingModelFile: false
       },
       
       // Camera settings - initialize with reasonable defaults
@@ -254,7 +265,55 @@ export const useAppStore = create<AppState & AppActions>()(
       // Visualization actions
       setVisualizationSettings: (settings) => set((state) => {
         Object.assign(state.visualizationSettings, settings);
+        
+        // If a new modelFile is being set, clear any existing serialized file
+        if (settings.modelFile !== undefined) {
+          state.visualizationSettings.serializedModelFile = null;
+        }
       }),
+
+      setModelFile: async (file) => {
+        if (!file) {
+          // Clear both file and serialized file
+          set((state) => {
+            state.visualizationSettings.modelFile = null;
+            state.visualizationSettings.serializedModelFile = null;
+            state.visualizationSettings.isLoadingModelFile = false;
+          });
+          return;
+        }
+
+        // Set loading state and the file immediately for UI responsiveness
+        set((state) => {
+          state.visualizationSettings.modelFile = file;
+          state.visualizationSettings.serializedModelFile = null;
+          state.visualizationSettings.isLoadingModelFile = true;
+        });
+
+        // Try to serialize the file for persistence (async)
+        let serializedFile: SerializedFile | null = null;
+        try {
+          if (isFileSizeStorable(file)) {
+            // Serialize the file for storage
+            serializedFile = await serializeFile(file);
+            // File serialized for persistence
+          } else {
+            console.warn('File too large to persist:', file.name, 'Size:', file.size);
+          }
+        } catch (error) {
+          console.error('Failed to serialize file for persistence:', error);
+        }
+
+        // Update with serialized data and clear loading state
+        set((state) => {
+          // Only update if the file hasn't changed in the meantime
+          if (state.visualizationSettings.modelFile === file) {
+            state.visualizationSettings.serializedModelFile = serializedFile;
+            state.visualizationSettings.isLoadingModelFile = false;
+            // Update state with serialized data
+          }
+        });
+      },
       
       // Camera actions
       setCameraPosition: (position) => set((state) => {
@@ -286,8 +345,12 @@ export const useAppStore = create<AppState & AppActions>()(
         state.visualizationSettings = {
           stockSize: [25, 25, 10],
           stockPosition: [0, 0, 0],
+          stockRotation: [0, 0, 0],
           showAxisLabels: true,
-          showCoordinateHover: true
+          showCoordinateHover: true,
+          modelFile: null,
+          serializedModelFile: null,
+          isLoadingModelFile: false
         };
         state.cameraSettings = {
           position: { x: -200, y: 200, z: -100 },
@@ -317,10 +380,35 @@ export const useAppStore = create<AppState & AppActions>()(
         machineSettings: state.machineSettings,
         probeSequence: state.probeSequence,
         probeSequenceSettings: state.probeSequenceSettings,
-        visualizationSettings: state.visualizationSettings,
+        visualizationSettings: {
+          ...state.visualizationSettings,
+          modelFile: null, // Don't persist File objects
+          // serializedModelFile will be persisted
+        },
         cameraSettings: state.cameraSettings
         // Don't persist: generatedGCode, importCounter (these are session-specific)
       }),
+      // Restore File objects from serialized data when rehydrating
+      onRehydrateStorage: () => (state) => {
+        // Check for serialized model file to restore
+        if (state && state.visualizationSettings.serializedModelFile) {
+          // Restore serialized file
+          try {
+            // Reconstruct the File object from serialized data
+            const restoredFile = deserializeFile(state.visualizationSettings.serializedModelFile);
+            state.visualizationSettings.modelFile = restoredFile;
+            // File restored successfully from storage
+          } catch (error) {
+            console.warn('Failed to restore model file from storage:', error);
+            state.visualizationSettings.serializedModelFile = null;
+            state.visualizationSettings.modelFile = null;
+          }
+        } else if (state) {
+          // No serialized file found in storage
+          // Ensure modelFile is null if no serialized file exists
+          state.visualizationSettings.modelFile = null;
+        }
+      },
     }
   )
 );
@@ -373,7 +461,8 @@ export const useImportActions = () => {
 
 export const useVisualizationActions = () => {
   const setVisualizationSettings = useAppStore((state) => state.setVisualizationSettings);
-  return { setVisualizationSettings };
+  const setModelFile = useAppStore((state) => state.setModelFile);
+  return { setVisualizationSettings, setModelFile };
 };
 
 export const useCameraActions = () => {

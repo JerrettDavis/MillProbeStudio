@@ -1,11 +1,12 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { ResizablePanelGroup, ResizablePanel } from '@/components/ui/resizable';
 import { Scene3D } from './visualization/Scene3D';
 import { CameraPresets, CameraCoordinateDisplay } from './visualization/CameraSystem';
+import { SceneToolbar, type SceneInteractionTool, type SceneObject } from './visualization/SceneToolbar';
 import { useMachineGeometry } from '@/hooks/visualization/useMachineGeometry';
 import { calculateInitialCameraPosition } from '@/utils/visualization/cameraPresets';
-import { useCameraControlsWithStore } from '@/store/hooks';
+import { useCameraControlsWithStore, useVisualizationControls } from '@/store/hooks';
 import type { MachineSettings, ProbeSequenceSettings } from '@/types/machine';
 
 export interface Machine3DVisualizationProps {
@@ -15,10 +16,15 @@ export interface Machine3DVisualizationProps {
   height?: string;
   stockSize?: [number, number, number];
   stockPosition?: [number, number, number];
+  stockRotation?: [number, number, number];
   onStockSizeChange?: (size: [number, number, number]) => void;
   onStockPositionChange?: (position: [number, number, number]) => void;
+  onStockRotationChange?: (rotation: [number, number, number]) => void;
+  onSpindlePositionChange?: (position: [number, number, number]) => void;
+  onStagePositionChange?: (position: number) => void;
   showAxisLabels?: boolean;
   showCoordinateHover?: boolean;
+  modelFile?: File | null;
 }
 
 /**
@@ -31,9 +37,36 @@ const Machine3DVisualization: React.FC<Machine3DVisualizationProps> = ({
   height = "600px",
   stockSize: providedStockSize,
   stockPosition: providedStockPosition,
+  stockRotation: providedStockRotation = [0, 0, 0],
+  onStockPositionChange,
+  onStockRotationChange,
+  onSpindlePositionChange,
+  onStagePositionChange,
   showAxisLabels = true,
-  showCoordinateHover = true
+  showCoordinateHover = true,
+  modelFile
 }) => {
+  // Scene interaction state - managed by Scene3D and passed up via callback
+  const [sceneInteractionState, setSceneInteractionState] = useState<{
+    selectedTool: SceneInteractionTool;
+    selectedObject: SceneObject;
+    canMove: boolean;
+    canRotate: boolean;
+    handleToolChange: (tool: SceneInteractionTool) => void;
+    handleObjectDeselect: () => void;
+  } | null>(null);
+
+  const handleSceneInteractionChange = useCallback((state: {
+    selectedTool: SceneInteractionTool;
+    selectedObject: SceneObject;
+    canMove: boolean;
+    canRotate: boolean;
+    handleToolChange: (tool: SceneInteractionTool) => void;
+    handleObjectDeselect: () => void;
+  }) => {
+    setSceneInteractionState(state);
+  }, []);
+
   // Use store for camera state management
   const {
     cameraPosition,
@@ -44,6 +77,13 @@ const Machine3DVisualization: React.FC<Machine3DVisualizationProps> = ({
     updatePivotMode,
     clearCameraPreset
   } = useCameraControlsWithStore();
+
+  // Use store for stock position/rotation controls
+  const {
+    updateStockPosition,
+    updateStockRotation,
+    stockRotation: currentStockRotation
+  } = useVisualizationControls();
 
   // Calculate machine geometry with memoization using props directly
   const geometry = useMachineGeometry({
@@ -63,6 +103,7 @@ const Machine3DVisualization: React.FC<Machine3DVisualizationProps> = ({
     return [pos.x, pos.y, pos.z] as [number, number, number];
   }, [machineSettings, cameraPosition]);
 
+  // Scene interaction handlers - removed since useSceneInteraction handles them internally
   // Handlers
   const handleControlsReady = useCallback(() => {
     // Camera controls are ready
@@ -71,6 +112,27 @@ const Machine3DVisualization: React.FC<Machine3DVisualizationProps> = ({
   const handleCameraUpdate = useCallback((position: { x: number; y: number; z: number }) => {
     updateCameraPosition(position);
   }, [updateCameraPosition]);
+
+  const handleStockPositionChange = useCallback((position: [number, number, number]) => {
+    console.log('[Machine3DVisualization] Stock position change:', position);
+    updateStockPosition(position);
+    onStockPositionChange?.(position);
+  }, [updateStockPosition, onStockPositionChange]);
+
+  const handleStockRotationChange = useCallback((deltaRotation: [number, number, number]) => {
+    console.log('[Machine3DVisualization] Stock rotation delta:', deltaRotation);
+    
+    // Calculate new absolute rotation by adding delta to current rotation from store
+    const newRotation: [number, number, number] = [
+      currentStockRotation[0] + deltaRotation[0],
+      currentStockRotation[1] + deltaRotation[1], 
+      currentStockRotation[2] + deltaRotation[2]
+    ];
+    
+    console.log('[Machine3DVisualization] New absolute rotation:', newRotation);
+    updateStockRotation(newRotation);
+    onStockRotationChange?.(newRotation);
+  }, [updateStockRotation, onStockRotationChange, currentStockRotation]);
 
   const handleManualCameraChange = useCallback(() => {
     clearCameraPreset();
@@ -112,6 +174,7 @@ const Machine3DVisualization: React.FC<Machine3DVisualizationProps> = ({
               geometry={geometry}
               stockSize={providedStockSize || [25, 25, 10]}
               stockPosition={providedStockPosition || [0, 0, 0]}
+              stockRotation={providedStockRotation}
               showAxisLabels={showAxisLabels}
               showCoordinateHover={showCoordinateHover}
               currentPreset={currentPreset || undefined}
@@ -120,8 +183,28 @@ const Machine3DVisualization: React.FC<Machine3DVisualizationProps> = ({
               onManualCameraChange={handleManualCameraChange}
               onAnimationStateChange={handleAnimationStateChange}
               pivotMode={pivotMode}
+              modelFile={modelFile}
+              onStockPositionChange={handleStockPositionChange}
+              onStockRotationChange={handleStockRotationChange}
+              onSpindlePositionChange={onSpindlePositionChange}
+              onStagePositionChange={onStagePositionChange}
+              onSceneInteractionChange={handleSceneInteractionChange}
             />
           </Canvas>
+          
+          {/* Scene Toolbar - top-left corner */}
+          {sceneInteractionState && (
+            <div className="absolute top-4 left-4 z-10">
+              <SceneToolbar
+                selectedTool={sceneInteractionState.selectedTool}
+                selectedObject={sceneInteractionState.selectedObject}
+                onToolChange={sceneInteractionState.handleToolChange}
+                onObjectDeselect={sceneInteractionState.handleObjectDeselect}
+                canRotate={sceneInteractionState.canRotate}
+                canMove={sceneInteractionState.canMove}
+              />
+            </div>
+          )}
           
           {/* Camera Position Display */}
           <CameraCoordinateDisplay 

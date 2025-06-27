@@ -91,8 +91,12 @@ describe('App Store', () => {
       visualizationSettings: {
         stockSize: [25, 25, 10],
         stockPosition: [0, 0, 0],
+        stockRotation: [0, 0, 0],
         showAxisLabels: true,
-        showCoordinateHover: true
+        showCoordinateHover: true,
+        modelFile: null,
+        serializedModelFile: null,
+        isLoadingModelFile: false
       },
       cameraSettings: {
         position: { x: -200, y: 200, z: -100 },

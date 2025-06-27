@@ -49,10 +49,15 @@ const SequenceVisualization: React.FC<SequenceVisualizationProps> = ({
   const {
     stockSize,
     stockPosition,
+    stockRotation,
     probePosition,
+    modelFile,
+    isLoadingModelFile,
     updateStockSize,
     updateStockPosition,
-    updateProbePosition
+    updateStockRotation,
+    updateProbePosition,
+    updateModelFile
   } = visualizationControls;
 
   // Use probe position directly from store - no need for additional variable
@@ -72,11 +77,14 @@ const SequenceVisualization: React.FC<SequenceVisualizationProps> = ({
                 probeSequence={probeSequenceSettings}
                 stockSize={stockSize}
                 stockPosition={stockPosition}
+                stockRotation={stockRotation}
                 onStockSizeChange={updateStockSize}
                 onStockPositionChange={updateStockPosition}
+                onStockRotationChange={updateStockRotation}
                 showAxisLabels={true}
                 showCoordinateHover={true}
                 height="100%"
+                modelFile={modelFile}
               />
             </div>
             
@@ -124,10 +132,15 @@ const SequenceVisualization: React.FC<SequenceVisualizationProps> = ({
                     <StockControls
                       stockSize={stockSize}
                       stockPosition={stockPosition}
+                      stockRotation={stockRotation}
                       onStockSizeChange={updateStockSize}
                       onStockPositionChange={updateStockPosition}
+                      onStockRotationChange={updateStockRotation}
                       units={machineSettings.units}
                       machineSettings={machineSettings}
+                      modelFile={modelFile}
+                      onModelFileChange={updateModelFile}
+                      isLoadingModelFile={isLoadingModelFile}
                     />
                   </div>
                 </DrawerContent>

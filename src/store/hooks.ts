@@ -113,7 +113,15 @@ export const useVisualizationControls = () => {
 
   const updateStockPosition = useCallback(
     (position: [number, number, number]) => {
+      console.log('[Store] Updating stock position to:', position);
       visualizationActions.setVisualizationSettings({ stockPosition: position });
+    },
+    [visualizationActions]
+  );
+
+  const updateStockRotation = useCallback(
+    (rotation: [number, number, number]) => {
+      visualizationActions.setVisualizationSettings({ stockRotation: rotation });
     },
     [visualizationActions]
   );
@@ -128,22 +136,39 @@ export const useVisualizationControls = () => {
     [probeActions]
   );
 
+  const updateModelFile = useCallback(
+    async (file: File | null) => {
+      await visualizationActions.setModelFile(file);
+    },
+    [visualizationActions]
+  );
+
   return useMemo(
     () => ({
       stockSize: visualizationSettings.stockSize,
       stockPosition: visualizationSettings.stockPosition,
+      stockRotation: visualizationSettings.stockRotation,
       probePosition: probeSequenceSettings.initialPosition,
+      modelFile: visualizationSettings.modelFile,
+      isLoadingModelFile: visualizationSettings.isLoadingModelFile,
       updateStockSize,
       updateStockPosition,
+      updateStockRotation,
       updateProbePosition,
+      updateModelFile,
     }),
     [
       visualizationSettings.stockSize,
       visualizationSettings.stockPosition,
+      visualizationSettings.stockRotation,
       probeSequenceSettings.initialPosition,
+      visualizationSettings.modelFile,
+      visualizationSettings.isLoadingModelFile,
       updateStockSize,
       updateStockPosition,
+      updateStockRotation,
       updateProbePosition,
+      updateModelFile,
     ]
   );
 };

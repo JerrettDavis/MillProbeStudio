@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useThree } from '@react-three/fiber';
+import * as THREE from 'three';
 import { MACHINE_ORIENTATION_CONFIGS } from '@/config/visualization/visualizationConfig';
 import { 
   InteractiveStock, 
@@ -7,6 +8,7 @@ import {
   MachineTable, 
   HorizontalStage 
 } from './MachineObjects';
+import { CustomModelStock } from './CustomModelStock';
 import { 
   CoordinateAxes, 
   EnhancedAxisLabels, 
@@ -16,6 +18,9 @@ import {
 import { ProbePathVisualization } from './ProbePathVisualization';
 import { SceneLighting, SceneGrid, SceneFloor } from './SceneEnvironment';
 import { EnhancedOrbitControls, CameraTracker } from './CameraSystem';
+import { useSceneInteraction } from './useSceneInteraction';
+import { MoveGizmo, RotateGizmo } from './gizmos';
+import type { SceneInteractionTool, SceneObject } from './SceneToolbar';
 import { 
   calculateStockWorldPosition,
   type MachineGeometry 
@@ -34,14 +39,30 @@ export interface Scene3DProps {
   geometry: MachineGeometry;
   stockSize: [number, number, number];
   stockPosition: [number, number, number];
+  stockRotation?: [number, number, number];
   showAxisLabels?: boolean;
   showCoordinateHover?: boolean;
   currentPreset?: CameraPreset;
   onCameraUpdate?: (position: { x: number; y: number; z: number }) => void;
   onControlsReady?: () => void;
   onManualCameraChange?: () => void;
-  onAnimationStateChange?: (isAnimating: boolean) => void; // Add animation state callback
+  onAnimationStateChange?: (isAnimating: boolean) => void;
   pivotMode: 'tool' | 'origin';
+  modelFile?: File | null;
+  // Scene interaction callbacks
+  onStockPositionChange?: (position: [number, number, number]) => void;
+  onStockRotationChange?: (rotation: [number, number, number]) => void;
+  onSpindlePositionChange?: (position: [number, number, number]) => void;
+  onStagePositionChange?: (position: number) => void;
+  // Toolbar control callbacks
+  onSceneInteractionChange?: (state: {
+    selectedTool: SceneInteractionTool;
+    selectedObject: SceneObject;
+    canMove: boolean;
+    canRotate: boolean;
+    handleToolChange: (tool: SceneInteractionTool) => void;
+    handleObjectDeselect: () => void;
+  }) => void;
 }
 
 /**
@@ -53,6 +74,7 @@ export const Scene3D: React.FC<Scene3DProps> = ({
   geometry,
   stockSize,
   stockPosition,
+  stockRotation = [0, 0, 0],
   showAxisLabels = true,
   showCoordinateHover = true,
   currentPreset,
@@ -60,11 +82,88 @@ export const Scene3D: React.FC<Scene3DProps> = ({
   onControlsReady,
   onManualCameraChange,
   onAnimationStateChange,
-  pivotMode
+  pivotMode,
+  modelFile,
+  onStockPositionChange,
+  onStockRotationChange,
+  onSpindlePositionChange,
+  onStagePositionChange,
+  onSceneInteractionChange
 }) => {
   const { camera } = useThree();
   const [hoverPosition, setHoverPosition] = useState<[number, number, number] | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [isGizmoDragging, setIsGizmoDragging] = useState(false);
+  
+  // Local rotation state for smooth gizmo interaction
+  const [localRotationState, setLocalRotationState] = useState<{
+    isActive: boolean;
+    originalRotation: [number, number, number];
+    accumulatedRotation: [number, number, number];
+  }>({ 
+    isActive: false, 
+    originalRotation: [0, 0, 0],
+    accumulatedRotation: [0, 0, 0] 
+  });
+  
+  // Scene interaction hook
+  const sceneInteraction = useSceneInteraction({
+    onStockPositionChange,
+    onStockRotationChange,
+    onSpindlePositionChange,
+    onStagePositionChange,
+    machineOrientation: machineSettings.machineOrientation,
+  });
+
+  // Object selection handlers - only work in select mode and when not dragging gizmos
+  const handleStockSelect = useCallback(() => {
+    if (sceneInteraction.interactionState.selectedTool === 'select' && !isGizmoDragging) {
+      sceneInteraction.handleObjectSelect(modelFile ? 'model' : 'stock');
+    }
+  }, [sceneInteraction, modelFile, isGizmoDragging]);
+
+  const handleSpindleSelect = useCallback(() => {
+    if (sceneInteraction.interactionState.selectedTool === 'select' && !isGizmoDragging) {
+      sceneInteraction.handleObjectSelect('spindle');
+    }
+  }, [sceneInteraction, isGizmoDragging]);
+
+  const handleStageSelect = useCallback(() => {
+    if (sceneInteraction.interactionState.selectedTool === 'select' && !isGizmoDragging) {
+      sceneInteraction.handleObjectSelect('stage');
+    }
+  }, [sceneInteraction, isGizmoDragging]);
+  
+  // Notify parent of scene interaction state changes
+  useEffect(() => {
+    if (onSceneInteractionChange) {
+      onSceneInteractionChange({
+        selectedTool: sceneInteraction.interactionState.selectedTool,
+        selectedObject: sceneInteraction.interactionState.selectedObject,
+        canMove: sceneInteraction.canMove,
+        canRotate: sceneInteraction.canRotate,
+        handleToolChange: sceneInteraction.handleToolChange,
+        handleObjectDeselect: sceneInteraction.handleObjectDeselect,
+      });
+    }
+  }, [
+    sceneInteraction.interactionState.selectedTool,
+    sceneInteraction.interactionState.selectedObject,
+    sceneInteraction.canMove,
+    sceneInteraction.canRotate,
+    sceneInteraction.handleToolChange,
+    sceneInteraction.handleObjectDeselect,
+    onSceneInteractionChange
+  ]);
+  
+  // Memoize model callbacks to prevent infinite reloads
+  const handleModelLoad = useCallback((boundingBox: THREE.Box3) => {
+    console.info('Model loaded with bounding box:', boundingBox);
+  }, []);
+  
+  const handleModelError = useCallback((error: string) => {
+    console.error('Error loading model:', error);
+  }, []);
   
   // Extract machine orientation and stage dimensions from machine settings
   const machineOrientation = machineSettings.machineOrientation;
@@ -101,6 +200,185 @@ export const Scene3D: React.FC<Scene3DProps> = ({
       return stockPosition;
     }
   }, [machineOrientation, geometry.stagePosition, stockSize, stockPosition, stageDimensions]);
+
+  // Gizmo interaction handlers
+  const handleGizmoMove = useCallback((delta: THREE.Vector3, axis?: 'x' | 'y' | 'z') => {
+    const selectedObject = sceneInteraction.interactionState.selectedObject;
+    
+    if (!axis) return; // Safety check - we need to know which axis is being moved
+    
+    switch (selectedObject) {
+      case 'stock':
+      case 'model':
+        if (onStockPositionChange) {
+          // Update only the specific axis in the stock position state
+          const currentPos = stockPosition; // Use state position, not world position
+          const newPosition: [number, number, number] = [...currentPos];
+          
+          // Map axis to array index and update only that axis
+          const axisIndex = axis === 'x' ? 0 : axis === 'y' ? 1 : 2;
+          newPosition[axisIndex] = currentPos[axisIndex] + delta[axis];
+          
+          console.log(`[Scene3D] Updating stock ${axis.toUpperCase()}-axis: ${currentPos[axisIndex].toFixed(3)} + ${delta[axis].toFixed(3)} = ${newPosition[axisIndex].toFixed(3)}`);
+          console.log('[Scene3D] Calling onStockPositionChange with:', newPosition);
+          onStockPositionChange(newPosition);
+        } else {
+          console.warn('[Scene3D] onStockPositionChange callback is undefined!');
+        }
+        break;
+        
+      case 'spindle':
+        if (onSpindlePositionChange) {
+          const currentPos = geometry.toolPosition;
+          const newPosition: [number, number, number] = [
+            axis === 'x' ? currentPos.x + delta.x : currentPos.x,
+            axis === 'y' ? currentPos.y + delta.y : currentPos.y,
+            axis === 'z' ? currentPos.z + delta.z : currentPos.z
+          ];
+          onSpindlePositionChange(newPosition);
+        }
+        break;
+        
+      case 'stage':
+        if (onStagePositionChange && axis === 'z') {
+          // Stage only moves in Z direction
+          onStagePositionChange(geometry.stagePosition.z + delta.z);
+        }
+        break;
+    }
+  }, [
+    sceneInteraction.interactionState.selectedObject,
+    onStockPositionChange,
+    onSpindlePositionChange,
+    onStagePositionChange,
+    stockPosition, // Use state position instead of world position
+    geometry.toolPosition,
+    geometry.stagePosition
+  ]);
+
+  // Gizmo drag state handlers
+  const handleGizmoDragStart = useCallback(() => {
+    setIsGizmoDragging(true);
+    // Store original rotation and initialize accumulated rotation when drag starts
+    setLocalRotationState({
+      isActive: true,
+      originalRotation: [...stockRotation],
+      accumulatedRotation: [...stockRotation]
+    });
+  }, [stockRotation]);
+
+  const handleGizmoDragEnd = useCallback(() => {
+    setIsGizmoDragging(false);
+    
+    // Calculate delta rotation from original to accumulated and commit to store
+    if (localRotationState.isActive && onStockRotationChange) {
+      const deltaRotation: [number, number, number] = [
+        localRotationState.accumulatedRotation[0] - localRotationState.originalRotation[0],
+        localRotationState.accumulatedRotation[1] - localRotationState.originalRotation[1],
+        localRotationState.accumulatedRotation[2] - localRotationState.originalRotation[2]
+      ];
+      onStockRotationChange(deltaRotation);
+    }
+    
+    // Reset local rotation state
+    setLocalRotationState({ 
+      isActive: false, 
+      originalRotation: [0, 0, 0],
+      accumulatedRotation: [0, 0, 0] 
+    });
+  }, [localRotationState, onStockRotationChange]);
+
+  const handleGizmoRotate = useCallback((delta: THREE.Euler) => {
+    const selectedObject = sceneInteraction.interactionState.selectedObject;
+    
+    switch (selectedObject) {
+      case 'stock':
+      case 'model':
+        if (localRotationState.isActive) {
+          // During drag: accumulate rotation incrementally from the current position
+          setLocalRotationState(prev => ({
+            ...prev,
+            accumulatedRotation: [
+              prev.accumulatedRotation[0] + delta.x,
+              prev.accumulatedRotation[1] + delta.y,
+              prev.accumulatedRotation[2] + delta.z
+            ]
+          }));
+        } else {
+          // If not in drag state, apply rotation directly to store (fallback)
+          if (onStockRotationChange) {
+            onStockRotationChange([delta.x, delta.y, delta.z]);
+          }
+        }
+        break;
+        
+      // Spindle and stage don't typically rotate in this application
+    }
+  }, [
+    sceneInteraction.interactionState.selectedObject,
+    localRotationState.isActive,
+    onStockRotationChange
+  ]);
+
+  // Use local accumulated rotation during drag, store rotation otherwise
+  const effectiveStockRotation = useMemo((): [number, number, number] => {
+    return localRotationState.isActive 
+      ? localRotationState.accumulatedRotation 
+      : stockRotation;
+  }, [localRotationState.isActive, localRotationState.accumulatedRotation, stockRotation]);
+
+  // Cleanup local rotation state if component unmounts during drag
+  React.useEffect(() => {
+    return () => {
+      if (localRotationState.isActive && onStockRotationChange) {
+        // Calculate and commit any pending rotation changes on unmount
+        const deltaRotation: [number, number, number] = [
+          localRotationState.accumulatedRotation[0] - localRotationState.originalRotation[0],
+          localRotationState.accumulatedRotation[1] - localRotationState.originalRotation[1],
+          localRotationState.accumulatedRotation[2] - localRotationState.originalRotation[2]
+        ];
+        onStockRotationChange(deltaRotation);
+      }
+    };
+  }, [localRotationState.isActive, localRotationState.accumulatedRotation, localRotationState.originalRotation, onStockRotationChange]);
+
+  // Calculate gizmo position based on selected object
+  const gizmoPosition = useMemo((): [number, number, number] => {
+    const selectedObject = sceneInteraction.interactionState.selectedObject;
+    
+    switch (selectedObject) {
+      case 'stock':
+      case 'model':
+        return stockWorldPosition;
+        
+      case 'spindle':
+        return [geometry.toolPosition.x, geometry.toolPosition.y, geometry.toolPosition.z];
+        
+      case 'stage':
+        return [geometry.stagePosition.x, geometry.stagePosition.y, geometry.stagePosition.z];
+        
+      default:
+        return [0, 0, 0];
+    }
+  }, [
+    sceneInteraction.interactionState.selectedObject,
+    stockWorldPosition,
+    geometry.toolPosition,
+    geometry.stagePosition
+  ]);
+
+  // Calculate gizmo rotation (for rotate gizmo)
+  const gizmoRotation = useMemo((): [number, number, number] => {
+    const selectedObject = sceneInteraction.interactionState.selectedObject;
+    
+    switch (selectedObject) {
+      case 'stock':
+      case 'model':
+        return effectiveStockRotation;
+      default:
+        return [0, 0, 0];
+    }
+  }, [sceneInteraction.interactionState.selectedObject, effectiveStockRotation]);
 
   // Store reference to controls methods
   const controlsMethodsRef = useRef<{ setPosition: (position: Position3D) => void } | null>(null);
@@ -242,6 +520,21 @@ export const Scene3D: React.FC<Scene3DProps> = ({
 
   return (
     <>
+      {/* Background plane for deselection - only in select mode */}
+      {sceneInteraction.interactionState.selectedTool === 'select' && (
+        <mesh
+          position={[0, 0, -50]}
+          onClick={(e) => {
+            e.stopPropagation();
+            sceneInteraction.handleObjectDeselect();
+          }}
+          visible={false}
+        >
+          <planeGeometry args={[1000, 1000]} />
+          <meshBasicMaterial transparent opacity={0} />
+        </mesh>
+      )}
+
       {/* Apply workspace rotation for machine orientation */}
       <group rotation={orientationConfig.workspaceRotation}>
         
@@ -251,7 +544,7 @@ export const Scene3D: React.FC<Scene3DProps> = ({
           machineOrientation={machineOrientation}
         />
 
-        {/* Machine Table */}
+        {/* Horizontal Stage */}
         {machineOrientation === 'horizontal' ? (
           <group>
             {/* Horizontal Stage */}
@@ -260,6 +553,8 @@ export const Scene3D: React.FC<Scene3DProps> = ({
               width={stageDimensions[1]} 
               depth={stageDimensions[2]}
               position={[geometry.stagePosition.x, geometry.stagePosition.y, geometry.stagePosition.z]}
+              onSelect={handleStageSelect}
+              isSelected={sceneInteraction.interactionState.selectedObject === 'stage'}
             />
           </group>
         ) : (
@@ -295,11 +590,29 @@ export const Scene3D: React.FC<Scene3DProps> = ({
         />
 
         {/* Stock */}
-        <InteractiveStock 
-          position={stockWorldPosition} 
-          size={stockSize}
-          onHover={showCoordinateHover ? setHoverPosition : undefined}
-        />
+        {modelFile ? (
+          <CustomModelStock 
+            key={modelFile.name + modelFile.size + modelFile.lastModified}
+            position={stockWorldPosition} 
+            size={stockSize}
+            rotation={effectiveStockRotation}
+            modelFile={modelFile}
+            onHover={showCoordinateHover && !isGizmoDragging ? setHoverPosition : undefined}
+            onModelLoad={handleModelLoad}
+            onModelError={handleModelError}
+            onSelect={!isGizmoDragging ? handleStockSelect : undefined}
+            isSelected={sceneInteraction.interactionState.selectedObject === 'model'}
+          />
+        ) : (
+          <InteractiveStock 
+            position={stockWorldPosition} 
+            size={stockSize}
+            rotation={effectiveStockRotation}
+            onHover={showCoordinateHover && !isGizmoDragging ? setHoverPosition : undefined}
+            onSelect={!isGizmoDragging ? handleStockSelect : undefined}
+            isSelected={sceneInteraction.interactionState.selectedObject === 'stock'}
+          />
+        )}
 
         {/* Coordinate hover display */}
         {showCoordinateHover && hoverPosition && (
@@ -319,7 +632,9 @@ export const Scene3D: React.FC<Scene3DProps> = ({
           position={[geometry.toolPosition.x, geometry.toolPosition.y, geometry.toolPosition.z]}
           diameter={toolDiameter}
           length={DEFAULT_VISUALIZATION_CONFIG.toolLength}
-          onHover={showCoordinateHover ? setHoverPosition : undefined}
+          onHover={showCoordinateHover && !isGizmoDragging ? setHoverPosition : undefined}
+          onSelect={!isGizmoDragging ? handleSpindleSelect : undefined}
+          isSelected={sceneInteraction.interactionState.selectedObject === 'spindle'}
         />
 
         {/* Probe path visualization */}
@@ -333,6 +648,34 @@ export const Scene3D: React.FC<Scene3DProps> = ({
         {/* Machine workspace bounds visualization */}
         <WorkspaceBoundsVisualization workspaceBounds={geometry.workspaceBounds} />
 
+        {/* Interactive Gizmos */}
+        {sceneInteraction.interactionState.selectedObject !== 'none' && (
+          <>
+            {/* Move Gizmo */}
+            <MoveGizmo
+              position={gizmoPosition}
+              selectedObject={sceneInteraction.interactionState.selectedObject}
+              onMove={handleGizmoMove}
+              onDragStart={handleGizmoDragStart}
+              onDragEnd={handleGizmoDragEnd}
+              visible={sceneInteraction.interactionState.selectedTool === 'move'}
+              machineOrientation={machineOrientation}
+            />
+
+            {/* Rotate Gizmo */}
+            <RotateGizmo
+              position={gizmoPosition}
+              rotation={gizmoRotation}
+              selectedObject={sceneInteraction.interactionState.selectedObject}
+              onRotate={handleGizmoRotate}
+              onDragStart={handleGizmoDragStart}
+              onDragEnd={handleGizmoDragEnd}
+              visible={sceneInteraction.interactionState.selectedTool === 'rotate'}
+              machineOrientation={machineOrientation}
+            />
+          </>
+        )}
+
         {/* Camera tracker for position updates */}
         {onCameraUpdate && <CameraTracker onCameraUpdate={onCameraUpdate} isAnimating={isAnimating} />}
       </group>
@@ -341,11 +684,10 @@ export const Scene3D: React.FC<Scene3DProps> = ({
       <EnhancedOrbitControls 
         target={cameraTarget}
         machineSettings={machineSettings}
-        enabled={!isAnimating} // Disable controls during animation
+        enabled={!isAnimating && !isGizmoDragging} // Disable during animation or gizmo dragging
         isAnimating={isAnimating} // Pass animation state
         onControlsReady={handleControlsReady}
-        onCameraChange={onCameraUpdate}
-        onManualCameraChange={handleManualCameraChange}
+        onCameraChange={onCameraUpdate}        onManualCameraChange={handleManualCameraChange}
       />
     </>
   );
