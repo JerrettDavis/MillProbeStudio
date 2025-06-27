@@ -162,7 +162,7 @@ export const useProbeSequenceSettings = (
 };
 
 // Tool size parsing utility
-const parseToolSize = (input: string, unit: 'fraction' | 'inch' | 'mm'): number => {
+export const parseToolSize = (input: string, unit: 'fraction' | 'inch' | 'mm'): number => {
   switch (unit) {
     case 'mm':
       return parseFloat(input) || 0;
