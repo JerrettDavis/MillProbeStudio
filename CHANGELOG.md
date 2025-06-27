@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 1.3.0 (2025-06-27)
+
+* fix: corrected building and linting issue with test file ([2264303](https://github.com/JerrettDavis/MillProbeStudio/commit/2264303))
+* fix: corrected spacial movement for move gizmo. Stock now follows direction of travel in 3D space is ([0b6ffe7](https://github.com/JerrettDavis/MillProbeStudio/commit/0b6ffe7))
+* Merge pull request #1 from JerrettDavis/feature/add-stl-uploading ([fc0cee6](https://github.com/JerrettDavis/MillProbeStudio/commit/fc0cee6)), closes [#1](https://github.com/JerrettDavis/MillProbeStudio/issues/1)
+* feat: added the ability to upload a custom model to the visualizer for the stock. ([ad37872](https://github.com/JerrettDavis/MillProbeStudio/commit/ad37872))
+* feat: implementing base tool-based movement system for the stock, probe, and stage. ([6778e2f](https://github.com/JerrettDavis/MillProbeStudio/commit/6778e2f))
+* feat: updated rotational and movement gizmos to more closely align with environment movements. Fixed ([3ed44e4](https://github.com/JerrettDavis/MillProbeStudio/commit/3ed44e4))
+* test: added more test coverage acorss the app ([1cdc019](https://github.com/JerrettDavis/MillProbeStudio/commit/1cdc019))
+* ci: updated ci/cd badge and corrected codecov jobs. ([86ed4c0](https://github.com/JerrettDavis/MillProbeStudio/commit/86ed4c0))
+* ci: updated step names for clarity ([73f6480](https://github.com/JerrettDavis/MillProbeStudio/commit/73f6480))
+
 ## 1.2.0 (2025-06-26)
 
 * chore: fixed linting issues. ([153be2e](https://github.com/JerrettDavis/MillProbeStudio/commit/153be2e))
