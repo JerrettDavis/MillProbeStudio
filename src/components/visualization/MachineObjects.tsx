@@ -5,8 +5,11 @@ import { DEFAULT_VISUALIZATION_CONFIG } from '@/config/visualization/visualizati
 export interface InteractiveStockProps {
   position: [number, number, number];
   size: [number, number, number];
+  rotation?: [number, number, number];
   onPositionChange?: (position: [number, number, number]) => void;
   onHover?: (position: [number, number, number] | null) => void;
+  onSelect?: () => void;
+  isSelected?: boolean;
 }
 
 /**
@@ -15,15 +18,22 @@ export interface InteractiveStockProps {
 export const InteractiveStock: React.FC<InteractiveStockProps> = ({
   position,
   size,
-  onHover
+  rotation = [0, 0, 0],
+  onHover,
+  onSelect,
+  isSelected = false
 }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
-  const handlePointerDown = useCallback(() => {
+  const handlePointerDown = useCallback((event: any) => {
+    event?.stopPropagation?.();
     setIsDragging(true);
-  }, []);
+    if (onSelect) {
+      onSelect();
+    }
+  }, [onSelect]);
 
   const handlePointerUp = useCallback(() => {
     setIsDragging(false);
@@ -50,6 +60,7 @@ export const InteractiveStock: React.FC<InteractiveStockProps> = ({
   const getStockColor = () => {
     const colors = DEFAULT_VISUALIZATION_CONFIG.colors.stock;
     if (isDragging) return colors.dragging;
+    if (isSelected) return '#4CAF50'; // Green for selected
     if (isHovered) return colors.hovered;
     return colors.default;
   };
@@ -58,6 +69,7 @@ export const InteractiveStock: React.FC<InteractiveStockProps> = ({
     <mesh 
       ref={meshRef}
       position={position}
+      rotation={rotation}
       onPointerDown={handlePointerDown}
       onPointerUp={handlePointerUp}
       onPointerEnter={handlePointerEnter}
@@ -79,6 +91,8 @@ export interface ToolVisualizationProps {
   diameter: number;
   length: number;
   onHover?: (position: [number, number, number] | null) => void;
+  onSelect?: () => void;
+  isSelected?: boolean;
   machineOrientation?: 'vertical' | 'horizontal';
 }
 
@@ -89,9 +103,18 @@ export const ToolVisualization: React.FC<ToolVisualizationProps> = ({
   position,
   diameter,
   length,
-  onHover
+  onHover,
+  onSelect,
+  isSelected = false
 }) => {
   const [isHovered, setIsHovered] = useState(false);
+
+  const handlePointerDown = useCallback((event: any) => {
+    event?.stopPropagation?.();
+    if (onSelect) {
+      onSelect();
+    }
+  }, [onSelect]);
 
   const handlePointerEnter = useCallback(() => {
     setIsHovered(true);
@@ -113,6 +136,12 @@ export const ToolVisualization: React.FC<ToolVisualizationProps> = ({
 
   const getToolColors = () => {
     const colors = DEFAULT_VISUALIZATION_CONFIG.colors.tool;
+    if (isSelected) {
+      return {
+        shank: '#4CAF50', // Green for selected
+        tip: '#4CAF50'
+      };
+    }
     return {
       shank: isHovered ? colors.shankhovered : colors.shank,
       tip: isHovered ? colors.tipHovered : colors.tip
@@ -129,6 +158,7 @@ export const ToolVisualization: React.FC<ToolVisualizationProps> = ({
       <mesh 
         position={[0, 0, length / 2]}
         rotation={[Math.PI / 2, 0, 0]}
+        onPointerDown={handlePointerDown}
         onPointerEnter={handlePointerEnter}
         onPointerMove={handlePointerMove}
         onPointerLeave={handlePointerLeave}
@@ -184,6 +214,8 @@ export interface HorizontalStageProps {
   width: number;  // Y dimension  
   depth: number;  // Z dimension
   position: [number, number, number];
+  onSelect?: () => void;
+  isSelected?: boolean;
 }
 
 /**
@@ -193,12 +225,29 @@ export const HorizontalStage: React.FC<HorizontalStageProps> = ({
   height,
   width,
   depth,
-  position
+  position,
+  onSelect,
+  isSelected = false
 }) => {
+  const handlePointerDown = useCallback((event: any) => {
+    event?.stopPropagation?.();
+    if (onSelect) {
+      onSelect();
+    }
+  }, [onSelect]);
+
+  const getStageColor = () => {
+    if (isSelected) return '#4CAF50'; // Green for selected
+    return '#444444';
+  };
+
   return (
-    <mesh position={position}>
+    <mesh 
+      position={position}
+      onPointerDown={handlePointerDown}
+    >
       <boxGeometry args={[height, width, depth]} />
-      <meshStandardMaterial color="#444444" transparent opacity={0.9} />
+      <meshStandardMaterial color={getStageColor()} transparent opacity={0.9} />
     </mesh>
   );
 };

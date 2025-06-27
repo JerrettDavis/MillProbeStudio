@@ -10,8 +10,10 @@ import type { MachineSettings } from '@/types/machine';
 interface StockControlsProps {
   stockSize: [number, number, number];
   stockPosition: [number, number, number];
+  stockRotation?: [number, number, number];
   onStockSizeChange: (size: [number, number, number]) => void;
   onStockPositionChange: (position: [number, number, number]) => void;
+  onStockRotationChange?: (rotation: [number, number, number]) => void;
   units: string;
   machineSettings: MachineSettings;
   modelFile?: File | null;
@@ -22,14 +24,21 @@ interface StockControlsProps {
 const StockControls: React.FC<StockControlsProps> = ({
   stockSize,
   stockPosition,
+  stockRotation = [0, 0, 0],
   onStockSizeChange,
   onStockPositionChange,
+  onStockRotationChange,
   units,
   machineSettings,
   modelFile,
   onModelFileChange,
   isLoadingModelFile = false
 }) => {
+  // Debug log position changes
+  React.useEffect(() => {
+    console.log('[StockControls] Position updated:', stockPosition);
+  }, [stockPosition]);
+
   // Extract machine orientation and stage dimensions from machine settings
   const machineOrientation = machineSettings.machineOrientation;
   const stageDimensions = machineSettings.stageDimensions;
@@ -63,12 +72,38 @@ const StockControls: React.FC<StockControlsProps> = ({
     }
   };
 
+  const  groundStock = () => {
+    if (machineOrientation === 'horizontal') {
+      onStockPositionChange([0, stockPosition[1], stockPosition[2]]);
+    } else {
+      const { Z } = machineSettings.axes;
+      const groundZ = Z.min + (Math.abs(Z.max - Z.min) * 0.1);
+      onStockPositionChange([stockPosition[0], stockPosition[1], groundZ]);
+    }
+  };
+
   // Position handler for individual inputs
   const handlePositionChange = (index: number, value: string) => {
     const numValue = parseFloat(value) || 0;
     const newPosition = [...stockPosition] as [number, number, number];
     newPosition[index] = numValue;
     onStockPositionChange(newPosition);
+  };
+
+  // Rotation handler for individual inputs
+  const handleRotationChange = (index: number, value: string) => {
+    if (!onStockRotationChange) return;
+    const degrees = parseFloat(value) || 0;
+    const radians = degrees * Math.PI / 180;
+    const newRotation = [...stockRotation] as [number, number, number];
+    newRotation[index] = radians;
+    onStockRotationChange(newRotation);
+  };
+
+  const resetRotation = () => {
+    if (onStockRotationChange) {
+      onStockRotationChange([0, 0, 0]);
+    }
   };
 
   return (
@@ -130,6 +165,40 @@ const StockControls: React.FC<StockControlsProps> = ({
 
         <Separator />
 
+        {/* Stock Rotation Controls */}
+        {onStockRotationChange && (
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-medium">Stock Rotation</h4>
+              <Button variant="ghost" size="sm" onClick={resetRotation} className="h-auto p-1 text-xs">
+                Reset
+              </Button>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              {['X', 'Y', 'Z'].map((axis, index) => (
+                <div key={axis}>
+                  <Label htmlFor={`stock-rotation-${axis.toLowerCase()}`} className="text-xs">
+                    {axis} Rotation (°)
+                  </Label>
+                  <input
+                    id={`stock-rotation-${axis.toLowerCase()}`}
+                    type="number"
+                    step="1"
+                    value={Math.round((stockRotation[index] * 180 / Math.PI) * 10) / 10}
+                    onChange={(e) => handleRotationChange(index, e.target.value)}
+                    className="mt-1 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Rotation around {axis.toLowerCase()}-axis
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <Separator />
+
         {/* Custom 3D Model Upload */}
         {onModelFileChange && (
           <>
@@ -150,6 +219,9 @@ const StockControls: React.FC<StockControlsProps> = ({
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={centerStock}>
               Center Stock
+            </Button>
+            <Button variant="outline" size="sm" onClick={groundStock}>
+              Ground Stock
             </Button>
             <Button variant="outline" size="sm" onClick={resetToDefault}>
               Reset to Default

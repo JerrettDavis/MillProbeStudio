@@ -49,11 +49,13 @@ const SequenceVisualization: React.FC<SequenceVisualizationProps> = ({
   const {
     stockSize,
     stockPosition,
+    stockRotation,
     probePosition,
     modelFile,
     isLoadingModelFile,
     updateStockSize,
     updateStockPosition,
+    updateStockRotation,
     updateProbePosition,
     updateModelFile
   } = visualizationControls;
@@ -128,8 +130,10 @@ const SequenceVisualization: React.FC<SequenceVisualizationProps> = ({
                     <StockControls
                       stockSize={stockSize}
                       stockPosition={stockPosition}
+                      stockRotation={stockRotation}
                       onStockSizeChange={updateStockSize}
                       onStockPositionChange={updateStockPosition}
+                      onStockRotationChange={updateStockRotation}
                       units={machineSettings.units}
                       machineSettings={machineSettings}
                       modelFile={modelFile}

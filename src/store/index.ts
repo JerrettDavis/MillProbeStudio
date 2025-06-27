@@ -73,6 +73,7 @@ interface AppState {
   visualizationSettings: {
     stockSize: [number, number, number];
     stockPosition: [number, number, number];
+    stockRotation: [number, number, number];
     showAxisLabels: boolean;
     showCoordinateHover: boolean;
     modelFile: File | null;
@@ -144,6 +145,7 @@ export const useAppStore = create<AppState & AppActions>()(
       visualizationSettings: {
         stockSize: [25, 25, 10],
         stockPosition: [0, 0, 0],
+        stockRotation: [0, 0, 0],
         showAxisLabels: true,
         showCoordinateHover: true,
         modelFile: null,
@@ -343,6 +345,7 @@ export const useAppStore = create<AppState & AppActions>()(
         state.visualizationSettings = {
           stockSize: [25, 25, 10],
           stockPosition: [0, 0, 0],
+          stockRotation: [0, 0, 0],
           showAxisLabels: true,
           showCoordinateHover: true,
           modelFile: null,

@@ -91,6 +91,7 @@ describe('App Store', () => {
       visualizationSettings: {
         stockSize: [25, 25, 10],
         stockPosition: [0, 0, 0],
+        stockRotation: [0, 0, 0],
         showAxisLabels: true,
         showCoordinateHover: true,
         modelFile: null,

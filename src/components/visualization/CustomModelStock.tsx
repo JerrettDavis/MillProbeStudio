@@ -7,11 +7,14 @@ import { DEFAULT_VISUALIZATION_CONFIG } from '@/config/visualization/visualizati
 export interface CustomModelStockProps {
   position: [number, number, number];
   size: [number, number, number];
+  rotation?: [number, number, number];
   modelFile?: File | null;
   modelUrl?: string | null;
   onHover?: (position: [number, number, number] | null) => void;
   onModelLoad?: (boundingBox: THREE.Box3) => void;
   onModelError?: (error: string) => void;
+  onSelect?: () => void;
+  isSelected?: boolean;
 }
 
 /**
@@ -20,11 +23,14 @@ export interface CustomModelStockProps {
 export const CustomModelStock: React.FC<CustomModelStockProps> = ({
   position,
   size,
+  rotation = [0, 0, 0],
   modelFile,
   modelUrl,
   onHover,
   onModelLoad,
-  onModelError
+  onModelError,
+  onSelect,
+  isSelected = false
 }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const groupRef = useRef<THREE.Group>(null);
@@ -188,8 +194,16 @@ export const CustomModelStock: React.FC<CustomModelStockProps> = ({
     }
   }, [onHover]);
 
+  const handlePointerDown = useCallback((event: any) => {
+    event?.stopPropagation?.();
+    if (onSelect) {
+      onSelect();
+    }
+  }, [onSelect]);
+
   const getStockColor = () => {
     const colors = DEFAULT_VISUALIZATION_CONFIG.colors.stock;
+    if (isSelected) return '#4CAF50'; // Green for selected
     if (isHovered) return colors.hovered;
     return colors.default;
   };
@@ -200,6 +214,7 @@ export const CustomModelStock: React.FC<CustomModelStockProps> = ({
       <mesh 
         ref={meshRef}
         position={position}
+        onPointerDown={handlePointerDown}
         onPointerEnter={handlePointerEnter}
         onPointerMove={handlePointerMove}
         onPointerLeave={handlePointerLeave}
@@ -215,9 +230,10 @@ export const CustomModelStock: React.FC<CustomModelStockProps> = ({
   }
 
   return (
-    <group ref={groupRef} position={position}>
+    <group ref={groupRef} position={position} rotation={rotation}>
       <mesh 
         ref={meshRef}
+        onPointerDown={handlePointerDown}
         onPointerEnter={handlePointerEnter}
         onPointerMove={handlePointerMove}
         onPointerLeave={handlePointerLeave}
