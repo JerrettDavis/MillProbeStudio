@@ -120,20 +120,42 @@ export const MoveGizmo: React.FC<MoveGizmoProps> = ({
         const cameraDistance = camera.position.distanceTo(gizmoWorldPos);
         const baseSensitivity = cameraDistance * 0.005; // Reduced from 0.001 to make it less sensitive
 
-        let movement = 0;
-        switch (dragState.axis) {
-            case 'x':
-                movement = -mouseDelta.y * baseSensitivity;
-                break;
-            case 'y':
-                movement = mouseDelta.x * baseSensitivity;
-                break;
-            case 'z':
-                movement = mouseDelta.x * baseSensitivity;
-                break;
-        }
+        // Get the world axis direction for the current drag axis
+        const axisDirection = new THREE.Vector3();
+        axisDirection[dragState.axis === 'x' ? 'x' : dragState.axis === 'y' ? 'y' : 'z'] = 1;
 
-        if (mouseDelta.length() > 1) { // Add minimum threshold to prevent micro-movements
+        // Project the axis direction to screen space
+        const axisStart = gizmoWorldPos.clone();
+        const axisEnd = gizmoWorldPos.clone().add(axisDirection);
+        
+        // Convert world positions to screen coordinates
+        const startScreen = axisStart.clone().project(camera);
+        const endScreen = axisEnd.clone().project(camera);
+        
+        // Convert normalized device coordinates to screen pixels
+        const canvas = gl.domElement;
+        startScreen.x = (startScreen.x + 1) * canvas.width / 2;
+        startScreen.y = (-startScreen.y + 1) * canvas.height / 2;
+        endScreen.x = (endScreen.x + 1) * canvas.width / 2;
+        endScreen.y = (-endScreen.y + 1) * canvas.height / 2;
+        
+        // Calculate the axis direction in screen space
+        const screenAxisDirection = new THREE.Vector2(
+            endScreen.x - startScreen.x,
+            endScreen.y - startScreen.y
+        ).normalize();
+        
+        // For horizontal mills, rotate Z-axis screen direction by 90 degrees CCW
+        if (machineOrientation === 'horizontal' && dragState.axis === 'z') {
+            // Rotate 90 degrees CCW: (x, y) -> (-y, x)
+            const rotatedDirection = new THREE.Vector2(-screenAxisDirection.y, screenAxisDirection.x);
+            screenAxisDirection.copy(rotatedDirection);
+        }
+        
+        // Calculate movement by projecting mouse delta onto the screen axis direction
+        const movement = mouseDelta.dot(screenAxisDirection) * baseSensitivity;
+
+        if (Math.abs(movement) > 0.001) { // Add minimum threshold to prevent micro-movements
             const delta = new THREE.Vector3();
             delta[dragState.axis] = movement;
             throttledOnMove(delta, dragState.axis);
