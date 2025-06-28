@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useRef } from 'react';
+import React, { useCallback, useState, useRef, useEffect } from 'react';
 import * as THREE from 'three';
 import { DEFAULT_VISUALIZATION_CONFIG } from '@/config/visualization/visualizationConfig';
 
@@ -26,6 +26,26 @@ export const InteractiveStock: React.FC<InteractiveStockProps> = ({
   const meshRef = useRef<THREE.Mesh>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+
+  // Debug: Log world coordinates of all 8 corners after transforms
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'development') return;
+    const mesh = meshRef.current;
+    if (!mesh) return;
+    const [sx, sy, sz] = size;
+    const localCorners = [
+      new THREE.Vector3(-sx/2, -sy/2, -sz/2),
+      new THREE.Vector3(-sx/2, -sy/2, sz/2),
+      new THREE.Vector3(-sx/2, sy/2, -sz/2),
+      new THREE.Vector3(-sx/2, sy/2, sz/2),
+      new THREE.Vector3(sx/2, -sy/2, -sz/2),
+      new THREE.Vector3(sx/2, -sy/2, sz/2),
+      new THREE.Vector3(sx/2, sy/2, -sz/2),
+      new THREE.Vector3(sx/2, sy/2, sz/2),
+    ];
+    const worldCorners = localCorners.map(v => v.clone().applyMatrix4(mesh.matrixWorld));
+    console.log('[InteractiveStock] (object: Stock) World corners:', worldCorners.map(v => v.toArray()));
+  }, [position, size, rotation]);
 
   const handlePointerDown = useCallback((event: React.PointerEvent) => {
     event?.stopPropagation?.();
@@ -197,8 +217,26 @@ export const MachineTable: React.FC<MachineTableProps> = ({
   height,
   position
 }) => {
+  const meshRef = useRef<THREE.Mesh>(null);
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'development') return;
+    const mesh = meshRef.current;
+    if (!mesh) return;
+    const localCorners = [
+      new THREE.Vector3(-width/2, -depth/2, -height/2),
+      new THREE.Vector3(-width/2, -depth/2, height/2),
+      new THREE.Vector3(-width/2, depth/2, -height/2),
+      new THREE.Vector3(-width/2, depth/2, height/2),
+      new THREE.Vector3(width/2, -depth/2, -height/2),
+      new THREE.Vector3(width/2, -depth/2, height/2),
+      new THREE.Vector3(width/2, depth/2, -height/2),
+      new THREE.Vector3(width/2, depth/2, height/2),
+    ];
+    const worldCorners = localCorners.map(v => v.clone().applyMatrix4(mesh.matrixWorld));
+    console.log('[MachineTable] (object: Stage) World corners:', worldCorners.map(v => v.toArray()));
+  }, [width, depth, height, position]);
   return (
-    <mesh position={position}>
+    <mesh ref={meshRef} position={position}>
       <boxGeometry args={[width, depth, height]} />
       <meshStandardMaterial 
         color={DEFAULT_VISUALIZATION_CONFIG.colors.machineTable} 
@@ -229,6 +267,25 @@ export const HorizontalStage: React.FC<HorizontalStageProps> = ({
   onSelect,
   isSelected = false
 }) => {
+  const meshRef = useRef<THREE.Mesh>(null);
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'development') return;
+    const mesh = meshRef.current;
+    if (!mesh) return;
+    const localCorners = [
+      new THREE.Vector3(-height/2, -width/2, -depth/2),
+      new THREE.Vector3(-height/2, -width/2, depth/2),
+      new THREE.Vector3(-height/2, width/2, -depth/2),
+      new THREE.Vector3(-height/2, width/2, depth/2),
+      new THREE.Vector3(height/2, -width/2, -depth/2),
+      new THREE.Vector3(height/2, -width/2, depth/2),
+      new THREE.Vector3(height/2, width/2, -depth/2),
+      new THREE.Vector3(height/2, width/2, depth/2),
+    ];
+    const worldCorners = localCorners.map(v => v.clone().applyMatrix4(mesh.matrixWorld));
+    console.log('[HorizontalStage] (object: Stage) World corners:', worldCorners.map(v => v.toArray()));
+  }, [height, width, depth, position]);
+
   const handlePointerDown = useCallback((event: React.PointerEvent) => {
     event?.stopPropagation?.();
     if (onSelect) {
@@ -243,6 +300,7 @@ export const HorizontalStage: React.FC<HorizontalStageProps> = ({
 
   return (
     <mesh 
+      ref={meshRef}
       position={position}
       onPointerDown={handlePointerDown}
     >

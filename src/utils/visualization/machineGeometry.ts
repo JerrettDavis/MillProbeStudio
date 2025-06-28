@@ -81,10 +81,11 @@ export const calculateStagePosition = (
   probeSequence?: ProbeSequenceSettings
 ): Position3D => {
   const { X, Y, Z } = machineSettings.axes;
-  
   // Calculate stage position based on probe X position (inverted relationship)
   const probeX = probeSequence?.initialPosition.X || X.min;
-  const stageX = X.max - (probeX - X.min); // Inverted mapping
+  // Stage X is offset by half its X size so X+ face aligns with desired position
+  const stageXSize = 12.7; // mm, default stage X size (width), update if dynamic
+  const stageX = X.max - (probeX - X.min) - stageXSize / 2;
   const stageY = (Y.max + Y.min) / 2; // Stage Y position (centered)
   const stageZ = (Z.max + Z.min) / 2; // Stage centered within Z bounds
 
