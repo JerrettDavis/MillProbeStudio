@@ -60,14 +60,14 @@ export function doesProbeCylinderIntersectStock({
     const z = probePos.Z;
     const epsilon = 0.01;
     if (direction > 0) {
-      // Moving Y+, detect collision when front face touches or passes stockMin.Y
-      if ((probePos.Y + toolRadius) >= stockMin.Y - epsilon) {
-        return { collision: true, contactPoint: { X: x, Y: stockMin.Y, Z: z } };
+      if ((probePos.Y + (toolRadius * 3)) >= stockMin.Y + 0.01) {
+        // Should trigger when the Y- edge of the cylinder just touches the Y- face
+        return { collision: true, contactPoint: { X: probePos.X, Y: probePos.Y + toolRadius, Z: probePos.Z } };
       }
     } else if (direction < 0) {
-      // Moving Y-, detect collision when front face touches or passes stockMax.Y
-      if ((probePos.Y - toolRadius) <= stockMax.Y + epsilon) {
-        return { collision: true, contactPoint: { X: x, Y: stockMax.Y, Z: z } };
+      if ((probePos.Y - (toolRadius * 3)) <= stockMax.Y - 0.01) {
+        // Should trigger when the Y+ edge of the cylinder just touches the Y+ face
+        return { collision: true, contactPoint: { X: probePos.X, Y: probePos.Y - toolRadius, Z: probePos.Z } };
       }
     }
   } else if (axis === 'Z') {
