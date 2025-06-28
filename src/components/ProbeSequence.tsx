@@ -128,6 +128,11 @@ const ProbeSequenceEditor: React.FC<ProbeSequenceProps> = ({
     // to preserve user's custom values. WCS Offset should only be auto-set for new probes.    // Notify parent of changes
     useEffect(() => {
         onProbeSequenceChange?.(probeSequence);
+        // Always keep probeSequenceSettings.operations in sync with probeSequence
+        setProbeSequenceSettings(prev => ({
+            ...prev,
+            operations: probeSequence
+        }));
     }, [probeSequence, onProbeSequenceChange]);
 
     useEffect(() => {

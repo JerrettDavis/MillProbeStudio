@@ -42,11 +42,12 @@ const StockControls: React.FC<StockControlsProps> = ({
   // Extract machine orientation and stage dimensions from machine settings
   const machineOrientation = machineSettings.machineOrientation;
   const stageDimensions = machineSettings.stageDimensions;
-  // Helper functions for preset actions
   const resetToDefault = () => {
     onStockSizeChange([25, 25, 10]);
 
     if (machineOrientation === 'horizontal') {
+      // For horizontal machines: [X offset from stage, Y offset from stage center, Z offset from stage top]
+      // [0, 0, 0] means stock is flush against stage X+ face, centered in Y, sitting on stage top
       onStockPositionChange([0, 0, 0]);
     } else {
       const { X, Y } = machineSettings.axes;
@@ -61,6 +62,7 @@ const StockControls: React.FC<StockControlsProps> = ({
     if (machineOrientation === 'horizontal') {
       const stockOffsetY = 0;
       const stageDepth = stageDimensions?.[2] || 63.5;
+      // Restore original Z calculation that was working
       const stockOffsetZ = -stageDepth / 2 - stockSize[2] / 2;
       const newPosition: [number, number, number] = [stockPosition[0], stockOffsetY, stockOffsetZ];
       onStockPositionChange(newPosition);
@@ -72,17 +74,75 @@ const StockControls: React.FC<StockControlsProps> = ({
     }
   };
 
-  const  groundStock = () => {
-    if (machineOrientation === 'horizontal') {
-      onStockPositionChange([0, stockPosition[1], stockPosition[2]]);
-    } else {
-      const { Z } = machineSettings.axes;
-      const groundZ = Z.min + (Math.abs(Z.max - Z.min) * 0.1);
-      onStockPositionChange([stockPosition[0], stockPosition[1], groundZ]);
-    }
+
+  /* -------- rotate local point [x,y,z] by rx,ry,rz  (X→Y→Z intrinsic) ---- */
+  const rotateVec = (
+    [x, y, z]: [number, number, number],
+    [rx, ry, rz]: [number, number, number],
+  ): [number, number, number] => {
+    const cos = Math.cos, sin = Math.sin;
+    [y, z] = [cos(rx) * y - sin(rx) * z, sin(rx) * y + cos(rx) * z];  // X-rot
+    [x, z] = [cos(ry) * x + sin(ry) * z, -sin(ry) * x + cos(ry) * z]; // Y-rot
+    [x, y] = [cos(rz) * x - sin(rz) * y, sin(rz) * x + cos(rz) * y];  // Z-rot
+    return [x, y, z];
   };
 
-  // Position handler for individual inputs
+  /* ------------------------- groundStock ------------------------------ */
+  const groundStock = () => {
+
+    /* ---------- horizontal machine ---------- */
+    if (machineOrientation === 'horizontal') {
+
+      const [dx, dy, dz] = stockSize;
+      const halfX = dx / 2;
+
+      /* 1. build all eight local corners */
+      const localCorners: [number, number, number][] = [];
+      for (const sx of [-halfX, halfX])
+        for (const sy of [-dy / 2, dy / 2])
+          for (const sz of [-dz / 2, dz / 2])
+            localCorners.push([sx, sy, sz]);
+
+      /* 2. rotate → translate into *world* coords */
+      const worldXs = localCorners.map(c => {
+        const [rx] = rotateVec(c, stockRotation);
+        // Scene3D later adds +halfX to line the centre up with the stage X+ face,
+        // so we replicate that here: (rx + halfX) + current stockPosition[0]
+        return rx + halfX + stockPosition[0];
+      });
+
+      /* 3. how far below/above the stage is the lowest corner? */
+      const worldMinX = Math.min(...worldXs);    // < 0  → penetrates
+      const dxShift = -worldMinX;              // amount to make it exactly 0
+
+      if (Math.abs(dxShift) < 1e-6) {
+        // Already flush – nothing to do
+        console.log('Ground Stock: already on stage');
+        return;
+      }
+
+      const newPos: [number, number, number] = [
+        stockPosition[0] + dxShift,              // add delta
+        stockPosition[1],
+        stockPosition[2],
+      ];
+
+      console.group('=== GROUND STOCK (world-exact) ===');
+      console.log('worldMinX  :', worldMinX.toFixed(3), 'mm');
+      console.log('dxShift    :', dxShift.toFixed(3), 'mm  (added to stockPos[0])');
+      console.log('old pos    :', stockPosition);
+      console.log('new pos    :', newPos);
+      console.groupEnd();
+
+      onStockPositionChange(newPos);
+      return;
+    }
+
+    /* ---------- vertical machine ---------- */
+    const { Z } = machineSettings.axes;
+    const groundZ = Z.min + 0.1 * Math.abs(Z.max - Z.min);
+    onStockPositionChange([stockPosition[0], stockPosition[1], groundZ]);
+  };  // Position handler for individual inputs
   const handlePositionChange = (index: number, value: string) => {
     const numValue = parseFloat(value) || 0;
     const newPosition = [...stockPosition] as [number, number, number];

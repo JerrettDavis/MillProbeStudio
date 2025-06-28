@@ -30,7 +30,7 @@ export const CustomModelStock: React.FC<CustomModelStockProps> = ({
   onModelLoad,
   onModelError,
   onSelect,
-  isSelected = false
+  isSelected = false,
 }) => {
   const meshRef = useRef<THREE.Mesh>(null);
   const groupRef = useRef<THREE.Group>(null);
@@ -126,17 +126,19 @@ export const CustomModelStock: React.FC<CustomModelStockProps> = ({
         // Scale to fit within the specified size
         const geometrySize = new THREE.Vector3();
         boundingBox.getSize(geometrySize);
-        
         const scaleX = size[0] / geometrySize.x;
         const scaleY = size[1] / geometrySize.y;
         const scaleZ = size[2] / geometrySize.z;
         const uniformScale = Math.min(scaleX, scaleY, scaleZ);
-        
         loadedGeometry.scale(uniformScale, uniformScale, uniformScale);
 
         // Recompute bounding box after transformations
         loadedGeometry.computeBoundingBox();
-        
+        // --- Ensure minX is at -size[0]/2 (flush with stage) ---
+        const bbox2 = loadedGeometry.boundingBox!;
+        const minX = bbox2.min.x;
+        loadedGeometry.translate(-minX - size[0]/2, 0, 0);
+
         // Check if the effect was cancelled before setting geometry
         if (cancelled) {
           loadedGeometry.dispose();
@@ -177,6 +179,7 @@ export const CustomModelStock: React.FC<CustomModelStockProps> = ({
     };
   }, [geometry]);
 
+
   const handlePointerEnter = useCallback(() => {
     setIsHovered(true);
   }, []);
@@ -211,6 +214,25 @@ export const CustomModelStock: React.FC<CustomModelStockProps> = ({
 
   // If no model is loaded, render default box geometry
   if (!geometry || !modelFile) {
+    // Debug: Log world coordinates of all 8 corners after transforms
+    useEffect(() => {
+      if (process.env.NODE_ENV !== 'development') return;
+      const mesh = meshRef.current;
+      if (!mesh) return;
+      const [sx, sy, sz] = size;
+      const localCorners = [
+        new THREE.Vector3(-sx/2, -sy/2, -sz/2),
+        new THREE.Vector3(-sx/2, -sy/2, sz/2),
+        new THREE.Vector3(-sx/2, sy/2, -sz/2),
+        new THREE.Vector3(-sx/2, sy/2, sz/2),
+        new THREE.Vector3(sx/2, -sy/2, -sz/2),
+        new THREE.Vector3(sx/2, -sy/2, sz/2),
+        new THREE.Vector3(sx/2, sy/2, -sz/2),
+        new THREE.Vector3(sx/2, sy/2, sz/2),
+      ];
+      const worldCorners = localCorners.map(v => v.clone().applyMatrix4(mesh.matrixWorld));
+      console.log('[CustomModelStock] (object: Stock, default box) World corners:', worldCorners.map(v => v.toArray()));
+    }, [position, size, rotation]);
     return (
       <mesh 
         ref={meshRef}
@@ -230,6 +252,29 @@ export const CustomModelStock: React.FC<CustomModelStockProps> = ({
     );
   }
 
+  // Use groundedPosition for the loaded model
+  // Debug: Log bounding box corners in world space for loaded model
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'development') return;
+    const group = groupRef.current;
+    if (!group || !geometry) return;
+    geometry.computeBoundingBox();
+    const bbox = geometry.boundingBox;
+    if (!bbox) return;
+    const min = bbox.min, max = bbox.max;
+    const localCorners = [
+      new THREE.Vector3(min.x, min.y, min.z),
+      new THREE.Vector3(min.x, min.y, max.z),
+      new THREE.Vector3(min.x, max.y, min.z),
+      new THREE.Vector3(min.x, max.y, max.z),
+      new THREE.Vector3(max.x, min.y, min.z),
+      new THREE.Vector3(max.x, min.y, max.z),
+      new THREE.Vector3(max.x, max.y, min.z),
+      new THREE.Vector3(max.x, max.y, max.z),
+    ];
+    const worldCorners = localCorners.map(v => v.clone().applyMatrix4(group.matrixWorld));
+    console.log('[CustomModelStock] (object: Stock, model) World bbox corners:', worldCorners.map(v => v.toArray()));
+  }, [position, rotation, geometry]);
   return (
     <group ref={groupRef} position={position} rotation={rotation}>
       <mesh 

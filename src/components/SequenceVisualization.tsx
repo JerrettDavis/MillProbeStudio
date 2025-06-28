@@ -2,12 +2,12 @@ import React from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { 
-  Drawer, 
-  DrawerContent, 
-  DrawerHeader, 
-  DrawerTitle, 
-  DrawerDescription, 
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerDescription,
   DrawerTrigger
 } from "@/components/ui/drawer";
 import { Box, MapPin, List, Settings } from "lucide-react";
@@ -17,6 +17,7 @@ import Machine3DVisualization from './Machine3DVisualization';
 import StockControls from './StockControls';
 import ProbeControls from './ProbeControls';
 import MachineSettingsForm from './MachineSettings';
+import { SimulationControls } from './visualization/SimulationControls';
 
 interface SequenceVisualizationProps {
   // These props are now optional - component will use store if not provided
@@ -27,9 +28,9 @@ interface SequenceVisualizationProps {
   updateAxisConfig?: (axis: 'X' | 'Y' | 'Z', field: keyof AxisConfig, value: AxisConfig[keyof AxisConfig]) => void;
 }
 
-const SequenceVisualization: React.FC<SequenceVisualizationProps> = ({ 
-  probeSequence: propProbeSequence, 
-  machineSettings: propMachineSettings, 
+const SequenceVisualization: React.FC<SequenceVisualizationProps> = ({
+  probeSequence: propProbeSequence,
+  machineSettings: propMachineSettings,
   probeSequenceSettings: propProbeSequenceSettings,
   setMachineSettings: propSetMachineSettings,
   updateAxisConfig: propUpdateAxisConfig
@@ -72,7 +73,7 @@ const SequenceVisualization: React.FC<SequenceVisualizationProps> = ({
           </CardHeader>
           <CardContent className="flex-1 relative p-4 pb-6 pt-0">
             <div className="h-full">
-              <Machine3DVisualization 
+              <Machine3DVisualization
                 machineSettings={machineSettings}
                 probeSequence={probeSequenceSettings}
                 stockSize={stockSize}
@@ -87,32 +88,15 @@ const SequenceVisualization: React.FC<SequenceVisualizationProps> = ({
                 modelFile={modelFile}
               />
             </div>
-            
+
+            {/* Simulation Controls - Top right corner */}
+            <div className="absolute bottom-8 right-6 z-10 max-w-80">
+              <SimulationControls probeSequence={probeSequenceSettings} />
+            </div>
+
             {/* Floating Control Buttons - Bottom of view */}
             <div className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 flex flex-row gap-1 sm:gap-2 z-10">
-              {/* Machine Settings Drawer */}
-              <Drawer>
-                <DrawerTrigger asChild>
-                  <Button variant="outline" size="sm" className="shadow-lg backdrop-blur-sm bg-white/90 text-xs sm:text-sm px-2 sm:px-3">
-                    <Settings className="w-4 h-4 sm:mr-2" />
-                    <span className="hidden sm:inline">Machine Settings</span>
-                    <span className="sm:hidden">Machine</span>
-                  </Button>
-                </DrawerTrigger>
-                <DrawerContent>
-                  <DrawerHeader>
-                    <DrawerTitle>Machine Settings</DrawerTitle>
-                    <DrawerDescription>Configure your CNC machine parameters and axis settings</DrawerDescription>
-                  </DrawerHeader>
-                  <div className="px-4 pb-4 max-h-[70vh] overflow-y-auto">
-                    <MachineSettingsForm
-                      machineSettings={machineSettings}
-                      setMachineSettings={setMachineSettings}
-                      updateAxisConfig={updateAxisConfig}
-                    />
-                  </div>
-                </DrawerContent>
-              </Drawer>
+
 
               {/* Stock Controls Drawer */}
               <Drawer>
@@ -206,6 +190,30 @@ const SequenceVisualization: React.FC<SequenceVisualizationProps> = ({
                         </div>
                       ))}
                     </div>
+                  </div>
+                </DrawerContent>
+              </Drawer>
+
+              {/* Machine Settings Drawer */}
+              <Drawer>
+                <DrawerTrigger asChild>
+                  <Button variant="outline" size="sm" className="shadow-lg backdrop-blur-sm bg-white/90 text-xs sm:text-sm px-2 sm:px-3">
+                    <Settings className="w-4 h-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Machine Settings</span>
+                    <span className="sm:hidden">Machine</span>
+                  </Button>
+                </DrawerTrigger>
+                <DrawerContent>
+                  <DrawerHeader>
+                    <DrawerTitle>Machine Settings</DrawerTitle>
+                    <DrawerDescription>Configure your CNC machine parameters and axis settings</DrawerDescription>
+                  </DrawerHeader>
+                  <div className="px-4 pb-4 max-h-[70vh] overflow-y-auto">
+                    <MachineSettingsForm
+                      machineSettings={machineSettings}
+                      setMachineSettings={setMachineSettings}
+                      updateAxisConfig={updateAxisConfig}
+                    />
                   </div>
                 </DrawerContent>
               </Drawer>
