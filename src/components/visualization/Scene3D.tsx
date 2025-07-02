@@ -30,10 +30,11 @@ import {
   type CameraPreset
 } from '@/utils/visualization/cameraPresets';
 import { DEFAULT_VISUALIZATION_CONFIG } from '@/config/visualization/visualizationConfig';
-import type { MachineSettings, ProbeSequenceSettings } from '@/types/machine';
+import type { MachineSettings, ProbeSequenceSettings, ProbeOperation } from '@/types/machine';
 import type { Position3D } from '@/utils/visualization/machineGeometry';
 import useProbeSimulation from '@/hooks/visualization/useProbeSimulation';
 import { useAppStore } from '@/store';
+import { ProbeLivePath } from './ProbeLivePath';
 
 export interface Scene3DProps {
   machineSettings: MachineSettings;
@@ -169,13 +170,59 @@ export const Scene3D: React.FC<Scene3DProps> = ({
   
   // Simulation state and logic
   const simulationState = useAppStore(state => state.simulationState);
-  const probeOps = probeSequence?.operations || [];
+  // Local type for parsed probe operation (for simulation)
+  type ParsedProbeOp = ProbeOperation & {
+    type: 'probe';
+    X: number;
+    Y: number;
+    Z: number;
+  };
+  const probeOps = useMemo<ParsedProbeOp[]>(() => {
+    if (!probeSequence?.operations) return [];
+    const basePos = probeSequence.initialPosition || { X: 0, Y: 0, Z: 0 };
+    return probeSequence.operations.map(op => ({
+      ...op,
+      type: 'probe',
+      X: basePos.X,
+      Y: basePos.Y,
+      Z: basePos.Z
+    }));
+  }, [probeSequence]);
   const initialPosition = probeSequence?.initialPosition || { X: 0, Y: 0, Z: 0 };
   useProbeSimulation(probeOps, initialPosition); // Only call for side effect, do not assign
   
   // Extract machine orientation and stage dimensions from machine settings
   const machineOrientation = machineSettings.machineOrientation;
   const stageDimensions = machineSettings.stageDimensions;
+
+  // --- Live probe path state ---
+  const [livePath, setLivePath] = React.useState<Array<{ X: number; Y: number; Z: number; axis: 'X' | 'Y' | 'Z' }>>([]);
+  // Track probe tip position and axis as simulation runs
+  useEffect(() => {
+    if (simulationState.isActive && simulationState.isPlaying) {
+      setLivePath((prev) => {
+        const last = prev[prev.length - 1];
+        // Transform simulation position to world coordinates for the probe tip
+        const tempProbeSequence: ProbeSequenceSettings = {
+          ...probeSequence,
+          initialPosition: simulationState.currentPosition
+        } as ProbeSequenceSettings;
+        const world = calculateToolPosition(machineSettings, tempProbeSequence, machineOrientation);
+        const axis = probeOps[simulationState.currentStepIndex]?.axis || 'Y';
+        // Only add if position actually changed and axis is not X
+        if ((axis === 'Y' || axis === 'Z') && (!last || last.X !== world.x || last.Y !== world.y || last.Z !== world.z)) {
+          return [...prev, { X: world.x, Y: world.y, Z: world.z, axis }];
+        }
+        // If axis is X, break the path (start a new segment)
+        if (axis === 'X') {
+          return [];
+        }
+        return prev;
+      });
+    } else if (!simulationState.isActive) {
+      setLivePath([]); // Reset on stop
+    }
+  }, [simulationState.isActive, simulationState.isPlaying, simulationState.currentPosition, simulationState.currentStepIndex, probeOps, machineSettings, machineOrientation, probeSequence]);
   
   // Get machine orientation configuration
   const orientationConfig = MACHINE_ORIENTATION_CONFIGS[machineOrientation];
@@ -741,6 +788,9 @@ export const Scene3D: React.FC<Scene3DProps> = ({
             </group>
           );
         })}
+
+        {/* Live probe path visualization */}
+        {livePath.length > 1 && <ProbeLivePath positions={livePath} />}
 
         {/* Interactive Gizmos */}
         {sceneInteraction.interactionState.selectedObject !== 'none' && (

@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom';
 import SequenceVisualization from '../SequenceVisualization';
-import type { ProbeOperation } from '@/types/machine';
+import type { ProbeOperation, ProbeSequenceSettings } from '@/types/machine';
 import { createMockMachineSettings } from '@/test/mockMachineSettings';
 
 // Mock the 3D visualization component to avoid Three.js in tests
@@ -48,10 +48,37 @@ const mockProbeSequence: ProbeOperation[] = [
   }
 ];
 
+const mockProbeSequenceSettings: ProbeSequenceSettings = {
+  initialPosition: { X: 0, Y: 0, Z: 0 },
+  dwellsBeforeProbe: 0,
+  spindleSpeed: 1000,
+  units: 'mm',
+  endmillSize: {
+    input: '6.35',
+    unit: 'mm',
+    sizeInMM: 6.35
+  },
+  operations: mockProbeSequence
+};
+
+// Helper function to create ProbeSequenceSettings with custom operations
+const createProbeSequenceSettings = (operations: ProbeOperation[], units: 'mm' | 'inch' = 'mm'): ProbeSequenceSettings => ({
+  initialPosition: { X: 0, Y: 0, Z: 0 },
+  dwellsBeforeProbe: 0,
+  spindleSpeed: 1000,
+  units,
+  endmillSize: {
+    input: units === 'mm' ? '6.35' : '0.25',
+    unit: units === 'mm' ? 'mm' : 'inch',
+    sizeInMM: units === 'mm' ? 6.35 : 6.35
+  },
+  operations
+});
+
 describe('SequenceVisualization Component', () => {
   it('renders 3D visualization title and description', () => {
     render(<SequenceVisualization 
-      probeSequence={[]} 
+      probeSequenceSettings={mockProbeSequenceSettings} 
       machineSettings={mockMachineSettings} 
       setMachineSettings={mockSetMachineSettings}
       updateAxisConfig={mockUpdateAxisConfig}
@@ -63,7 +90,7 @@ describe('SequenceVisualization Component', () => {
 
   it('shows 3D visualization component', () => {
     render(<SequenceVisualization 
-      probeSequence={[]} 
+      probeSequenceSettings={mockProbeSequenceSettings} 
       machineSettings={mockMachineSettings} 
       setMachineSettings={mockSetMachineSettings}
       updateAxisConfig={mockUpdateAxisConfig}
@@ -74,7 +101,7 @@ describe('SequenceVisualization Component', () => {
 
   it('renders drawer buttons for controls and sequence details', () => {
     render(<SequenceVisualization 
-      probeSequence={mockProbeSequence} 
+      probeSequenceSettings={mockProbeSequenceSettings} 
       machineSettings={mockMachineSettings} 
       setMachineSettings={mockSetMachineSettings}
       updateAxisConfig={mockUpdateAxisConfig}
@@ -88,7 +115,7 @@ describe('SequenceVisualization Component', () => {
   it('opens stock controls drawer when button is clicked', async () => {
     const user = userEvent.setup();
     render(<SequenceVisualization 
-      probeSequence={[]} 
+      probeSequenceSettings={mockProbeSequenceSettings} 
       machineSettings={mockMachineSettings} 
       setMachineSettings={mockSetMachineSettings}
       updateAxisConfig={mockUpdateAxisConfig}
@@ -103,7 +130,7 @@ describe('SequenceVisualization Component', () => {
   it('displays probe operations details when drawer is opened', async () => {
     const user = userEvent.setup();
     render(<SequenceVisualization 
-      probeSequence={mockProbeSequence} 
+      probeSequenceSettings={mockProbeSequenceSettings} 
       machineSettings={mockMachineSettings} 
       setMachineSettings={mockSetMachineSettings}
       updateAxisConfig={mockUpdateAxisConfig}
@@ -128,7 +155,7 @@ describe('SequenceVisualization Component', () => {
   it('displays probe operations with correct badges', async () => {
     const user = userEvent.setup();
     render(<SequenceVisualization 
-      probeSequence={mockProbeSequence} 
+      probeSequenceSettings={mockProbeSequenceSettings} 
       machineSettings={mockMachineSettings} 
       setMachineSettings={mockSetMachineSettings}
       updateAxisConfig={mockUpdateAxisConfig}
@@ -149,8 +176,9 @@ describe('SequenceVisualization Component', () => {
   it('displays probe operations with inch units', async () => {
     const user = userEvent.setup();
     const inchMachineSettings = { ...mockMachineSettings, units: 'inch' as const };
+    const inchProbeSequenceSettings = createProbeSequenceSettings(mockProbeSequence, 'inch');
     render(<SequenceVisualization 
-      probeSequence={mockProbeSequence} 
+      probeSequenceSettings={inchProbeSequenceSettings} 
       machineSettings={inchMachineSettings} 
       setMachineSettings={mockSetMachineSettings}
       updateAxisConfig={mockUpdateAxisConfig}
@@ -181,7 +209,7 @@ describe('SequenceVisualization Component', () => {
     ];
 
     render(<SequenceVisualization 
-      probeSequence={singleProbe} 
+      probeSequenceSettings={createProbeSequenceSettings(singleProbe)} 
       machineSettings={mockMachineSettings} 
       setMachineSettings={mockSetMachineSettings}
       updateAxisConfig={mockUpdateAxisConfig}
@@ -236,7 +264,7 @@ describe('SequenceVisualization Component', () => {
     ];
 
     render(<SequenceVisualization 
-      probeSequence={probeWithManyMoves} 
+      probeSequenceSettings={createProbeSequenceSettings(probeWithManyMoves)} 
       machineSettings={mockMachineSettings} 
       setMachineSettings={mockSetMachineSettings}
       updateAxisConfig={mockUpdateAxisConfig}
@@ -280,7 +308,7 @@ describe('SequenceVisualization Component', () => {
     ];
 
     render(<SequenceVisualization 
-      probeSequence={bothDirections} 
+      probeSequenceSettings={createProbeSequenceSettings(bothDirections)} 
       machineSettings={mockMachineSettings} 
       setMachineSettings={mockSetMachineSettings}
       updateAxisConfig={mockUpdateAxisConfig}
@@ -294,7 +322,7 @@ describe('SequenceVisualization Component', () => {
   });
   it('renders the main structure with 3D visualization and drawer buttons', () => {
     render(<SequenceVisualization 
-      probeSequence={mockProbeSequence} 
+      probeSequenceSettings={mockProbeSequenceSettings} 
       machineSettings={mockMachineSettings} 
       setMachineSettings={mockSetMachineSettings}
       updateAxisConfig={mockUpdateAxisConfig}

@@ -217,7 +217,6 @@ const commandProcessors = {
 
     const axis = axisKeys[0] as 'X' | 'Y' | 'Z';
     const value = axes[axis];
-    
     state.currentProbe = {
       axis,
       direction: value < 0 ? -1 : 1,

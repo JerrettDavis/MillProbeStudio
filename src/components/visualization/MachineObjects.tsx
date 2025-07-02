@@ -268,23 +268,6 @@ export const HorizontalStage: React.FC<HorizontalStageProps> = ({
   isSelected = false
 }) => {
   const meshRef = useRef<THREE.Mesh>(null);
-  useEffect(() => {
-    if (process.env.NODE_ENV !== 'development') return;
-    const mesh = meshRef.current;
-    if (!mesh) return;
-    const localCorners = [
-      new THREE.Vector3(-height/2, -width/2, -depth/2),
-      new THREE.Vector3(-height/2, -width/2, depth/2),
-      new THREE.Vector3(-height/2, width/2, -depth/2),
-      new THREE.Vector3(-height/2, width/2, depth/2),
-      new THREE.Vector3(height/2, -width/2, -depth/2),
-      new THREE.Vector3(height/2, -width/2, depth/2),
-      new THREE.Vector3(height/2, width/2, -depth/2),
-      new THREE.Vector3(height/2, width/2, depth/2),
-    ];
-    const worldCorners = localCorners.map(v => v.clone().applyMatrix4(mesh.matrixWorld));
-    console.log('[HorizontalStage] (object: Stage) World corners:', worldCorners.map(v => v.toArray()));
-  }, [height, width, depth, position]);
 
   const handlePointerDown = useCallback((event: React.PointerEvent) => {
     event?.stopPropagation?.();

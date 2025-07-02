@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '@/store';
 import useProbeSimulation from '@/hooks/visualization/useProbeSimulation';
-import type { ProbeSequenceSettings } from '@/types/machine';
+import type { ProbeSequenceSettings, ProbeOperation } from '@/types/machine';
 
 interface SimulationControlsProps {
   className?: string;
@@ -31,12 +31,43 @@ export const SimulationControls: React.FC<SimulationControlsProps> = ({ classNam
     resetSimulation,
     setSimulationSpeed,
     setSimulationStep,
-    addProbeOperation
+    addProbeOperation,
+    probeSequence: storeProbeSequence,
+    setProbeSequenceSettings
   } = useAppStore();
 
-  const probeOps = probeSequence?.operations || [];
+  // Always use the probeSequence prop if provided
+  const probeOps = (probeSequence && probeSequence.operations && probeSequence.operations.length > 0)
+    ? probeSequence.operations
+    : (storeProbeSequence && storeProbeSequence.length > 0 ? storeProbeSequence : []);
+
+  // Local type for parsed probe operation (for simulation)
+  type ParsedProbeOp = ProbeOperation & {
+    type: 'probe';
+    X: number;
+    Y: number;
+    Z: number;
+  };
+
+  // Map probeOps (ProbeOperation[]) to ParsedProbeOp[] if needed
+  let parsedProbeOps: ParsedProbeOp[] = [];
+  const basePos = {
+    X: probeSequence?.initialPosition?.X ?? 0,
+    Y: probeSequence?.initialPosition?.Y ?? 0,
+    Z: probeSequence?.initialPosition?.Z ?? 0
+  };
+  if (probeOps && probeOps.length > 0 && probeOps[0].axis && probeOps[0].direction !== undefined) {
+    parsedProbeOps = probeOps.map((op: ProbeOperation) => ({
+      ...op,
+      type: 'probe',
+      X: basePos.X,
+      Y: basePos.Y,
+      Z: basePos.Z
+    }));
+  }
+
   const initialPosition = probeSequence?.initialPosition || { X: 0, Y: 0, Z: 0 };
-  const simulation = useProbeSimulation(probeOps, initialPosition);
+  const simulation = useProbeSimulation(parsedProbeOps, initialPosition);
 
   const handlePlayPause = () => {
     if (!simulationState.isActive) {
@@ -86,18 +117,17 @@ export const SimulationControls: React.FC<SimulationControlsProps> = ({ classNam
   };
 
   const createTestSequence = () => {
-    // Add a simple 3-probe test sequence
+    // Add a simple 3-probe test sequence with a fast Y move for E2E smoothness test
     addProbeOperation({
       axis: 'Y',
       direction: -1,
       distance: 15,
-      feedRate: 50,
+      feedRate: 300, // Increased for smoothness E2E test
       backoffDistance: 2,
       wcsOffset: 0,
       preMoves: [],
       postMoves: []
     });
-    
     addProbeOperation({
       axis: 'X',
       direction: -1,
@@ -108,7 +138,6 @@ export const SimulationControls: React.FC<SimulationControlsProps> = ({ classNam
       preMoves: [],
       postMoves: []
     });
-    
     addProbeOperation({
       axis: 'Z',
       direction: -1,
@@ -119,10 +148,23 @@ export const SimulationControls: React.FC<SimulationControlsProps> = ({ classNam
       preMoves: [],
       postMoves: []
     });
+    // Also update probeSequenceSettings.operations for compatibility
+    setProbeSequenceSettings((prev) => ({
+      ...prev,
+      operations: [
+        { id: `probe-${Date.now()}-Y`, axis: 'Y', direction: -1, distance: 15, feedRate: 300, backoffDistance: 2, wcsOffset: 0, preMoves: [], postMoves: [] },
+        { id: `probe-${Date.now()}-X`, axis: 'X', direction: -1, distance: 12, feedRate: 50, backoffDistance: 2, wcsOffset: 0, preMoves: [], postMoves: [] },
+        { id: `probe-${Date.now()}-Z`, axis: 'Z', direction: -1, distance: 8, feedRate: 30, backoffDistance: 1, wcsOffset: 0, preMoves: [], postMoves: [] }
+      ]
+    }));
   };
 
   // Don't render if no probe sequence
   if (!simulation.isReady) {
+    if (typeof window !== 'undefined' && (window as Window & { DEBUG_PROBE_SIM?: boolean }).DEBUG_PROBE_SIM) {
+       
+      console.log('SimulationControls fallback: simulation.isReady:', simulation.isReady, 'totalSteps:', simulation.totalSteps);
+    }
     return (
       <Card className={`${className}`}>
         <CardContent className="p-4 space-y-4">
@@ -133,7 +175,7 @@ export const SimulationControls: React.FC<SimulationControlsProps> = ({ classNam
           <div className="text-sm text-gray-600">
             No probe sequence available for simulation.
           </div>
-          <Button onClick={createTestSequence} size="sm" className="w-full">
+          <Button onClick={createTestSequence} size="sm" className="w-full" data-testid="probe-create-sequence">
             Create Test Sequence
           </Button>
         </CardContent>
@@ -157,6 +199,7 @@ export const SimulationControls: React.FC<SimulationControlsProps> = ({ classNam
             onClick={handlePlayPause}
             size="sm"
             variant={simulationState.isPlaying ? "secondary" : "default"}
+            data-testid="probe-sim-play"
           >
             {simulationState.isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
           </Button>
@@ -230,7 +273,10 @@ export const SimulationControls: React.FC<SimulationControlsProps> = ({ classNam
         {/* Current Position Display */}
         <div className="space-y-1">
           <div className="text-xs font-medium">Current Position</div>
-          <div className="text-xs font-mono bg-gray-100 dark:bg-gray-800 p-2 rounded">
+          <div
+            className="text-xs font-mono bg-gray-100 dark:bg-gray-800 p-2 rounded"
+            data-testid="probe-current-position"
+          >
             {formatPosition(simulationState.currentPosition)}
           </div>
         </div>

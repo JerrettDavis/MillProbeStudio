@@ -1,6 +1,5 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Drawer,
@@ -10,26 +9,28 @@ import {
   DrawerDescription,
   DrawerTrigger
 } from "@/components/ui/drawer";
-import { Box, MapPin, List, Settings } from "lucide-react";
-import type { ProbeOperation, MachineSettings, ProbeSequenceSettings, AxisConfig } from '@/types/machine';
+import { Box, MapPin, Settings } from "lucide-react";
 import { useVisualizationWithStore, useVisualizationControls } from '@/store';
+import { useAppStore } from '@/store';
 import Machine3DVisualization from './Machine3DVisualization';
 import StockControls from './StockControls';
 import ProbeControls from './ProbeControls';
 import MachineSettingsForm from './MachineSettings';
 import { SimulationControls } from './visualization/SimulationControls';
+import GCodeReadout from './visualization/GCodeReadout';
+import useProbeSimulation from '@/hooks/visualization/useProbeSimulation';
+import { parseGCode } from '@/utils/gcodeParser';
+// Use types from src/types/machine for ProbeOperation and ProbeSequenceSettings
+import type { ProbeOperation, ProbeSequenceSettings, MachineSettings } from '@/types/machine';
 
 interface SequenceVisualizationProps {
-  // These props are now optional - component will use store if not provided
-  probeSequence?: ProbeOperation[];
   machineSettings?: MachineSettings;
   probeSequenceSettings?: ProbeSequenceSettings;
   setMachineSettings?: React.Dispatch<React.SetStateAction<MachineSettings>>;
-  updateAxisConfig?: (axis: 'X' | 'Y' | 'Z', field: keyof AxisConfig, value: AxisConfig[keyof AxisConfig]) => void;
+  updateAxisConfig?: (axis: 'X' | 'Y' | 'Z', field: string, value: number | string) => void;
 }
 
 const SequenceVisualization: React.FC<SequenceVisualizationProps> = ({
-  probeSequence: propProbeSequence,
   machineSettings: propMachineSettings,
   probeSequenceSettings: propProbeSequenceSettings,
   setMachineSettings: propSetMachineSettings,
@@ -40,9 +41,8 @@ const SequenceVisualization: React.FC<SequenceVisualizationProps> = ({
   const visualizationControls = useVisualizationControls();
 
   // Use props if provided, otherwise fall back to store
-  const probeSequence = propProbeSequence ?? storeData.probeSequence;
   const machineSettings = propMachineSettings ?? storeData.machineSettings;
-  const probeSequenceSettings = propProbeSequenceSettings ?? storeData.probeSequenceSettings;
+  const probeSequenceSettings: ProbeSequenceSettings | undefined = propProbeSequenceSettings ?? storeData.probeSequenceSettings;
   const setMachineSettings = propSetMachineSettings ?? storeData.setMachineSettings;
   const updateAxisConfig = propUpdateAxisConfig ?? storeData.updateAxisConfig;
 
@@ -61,7 +61,59 @@ const SequenceVisualization: React.FC<SequenceVisualizationProps> = ({
     updateModelFile
   } = visualizationControls;
 
-  // Use probe position directly from store - no need for additional variable
+  // Get G-code and simulation state from store
+  const generatedGCode = useAppStore(state => state.generatedGCode) || '';
+  // Parse G-code into parsedGCodeLines for simulation
+  const parsedGCodeLines = useMemo(() => {
+    const result = parseGCode(generatedGCode);
+    // If your parser does not return a lines array, fallback to probeSequence or map lines
+    if (Array.isArray(result.probeSequence) && result.probeSequence.length > 0) {
+      // Map probeSequence to ParsedGCodeLine[] if needed
+      return result.probeSequence.map((probe: ProbeOperation) => ({
+        type: 'probe',
+        axis: probe.axis,
+        direction: probe.direction,
+        distance: probe.distance,
+        feedRate: probe.feedRate,
+        backoffDistance: probe.backoffDistance,
+        wcsOffset: probe.wcsOffset,
+        id: probe.id,
+        preMoves: probe.preMoves,
+        postMoves: probe.postMoves,
+      }));
+    }
+    // Fallback: use probeSequenceSettings.operations if available
+    if (probeSequenceSettings && Array.isArray(probeSequenceSettings.operations) && probeSequenceSettings.operations.length > 0) {
+      return probeSequenceSettings.operations.map((probe: ProbeOperation) => ({
+        id: probe.id,
+        type: 'probe',
+        axis: probe.axis,
+        direction: probe.direction,
+        distance: probe.distance,
+        feedRate: probe.feedRate,
+        backoffDistance: probe.backoffDistance,
+        wcsOffset: probe.wcsOffset,
+        preMoves: probe.preMoves,
+        postMoves: probe.postMoves,
+        // Add any other fields needed by the simulation engine
+      }));
+    }
+    // Fallback: map each line to a minimal ParsedGCodeLine
+    return generatedGCode.split(/\r?\n/).map(line => ({ type: 'other', raw: line }));
+  }, [generatedGCode, probeSequenceSettings]);
+
+  // Ensure gcodeLines is defined before use
+  const gcodeLines = useMemo(() => generatedGCode.split(/\r?\n/), [generatedGCode]);
+
+  // Get initial position from settings or parser (fallback to 0,0,0)
+  const initialPosition = probeSequenceSettings?.initialPosition || { X: 0, Y: 0, Z: 0 };
+
+  // Use the new simulation engine
+  const simulation = useProbeSimulation(parsedGCodeLines, initialPosition);
+  // Always get currentStepIndex from store, then let simulation override if available
+  const storeCurrentStepIndex = useAppStore(state => state.simulationState.currentStepIndex);
+  const currentLine = simulation?.currentStepIndex ?? storeCurrentStepIndex;
+
   return (
     <div className="flex flex-col h-[calc(100vh-130px)]">
       {/* 3D Visualization with floating controls - fills remaining height */}
@@ -157,43 +209,6 @@ const SequenceVisualization: React.FC<SequenceVisualizationProps> = ({
                 </DrawerContent>
               </Drawer>
 
-              {/* Sequence Details Drawer */}
-              <Drawer>
-                <DrawerTrigger asChild>
-                  <Button variant="outline" size="sm" className="shadow-lg backdrop-blur-sm bg-white/90 text-xs sm:text-sm px-2 sm:px-3">
-                    <List className="w-4 h-4 sm:mr-2" />
-                    <span className="hidden sm:inline">Sequence Details</span>
-                    <span className="sm:hidden">Sequence</span>
-                  </Button>
-                </DrawerTrigger>
-                <DrawerContent>
-                  <DrawerHeader>
-                    <DrawerTitle>Sequence Summary</DrawerTitle>
-                    <DrawerDescription>Details of each probe operation in your sequence</DrawerDescription>
-                  </DrawerHeader>
-                  <div className="px-4 pb-4 max-h-[70vh] overflow-y-auto">
-                    <div className="space-y-2">
-                      {probeSequence.map((probe, index) => (
-                        <div key={probe.id} className="flex items-center space-x-4 p-3 border rounded-lg">
-                          <Badge>{index + 1}</Badge>
-                          <div className="flex-1">
-                            <span className="font-medium">
-                              Probe {probe.axis} axis {probe.direction > 0 ? 'positive' : 'negative'} direction
-                            </span>
-                            <div className="text-sm text-gray-600">
-                              Distance: {probe.distance}{machineSettings.units},
-                              Feed: {probe.feedRate}{machineSettings.units}/min,
-                              Backoff: {probe.backoffDistance}{machineSettings.units}
-                            </div>
-                          </div>
-                          <Badge variant="outline">{probe.postMoves.length} post-moves</Badge>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </DrawerContent>
-              </Drawer>
-
               {/* Machine Settings Drawer */}
               <Drawer>
                 <DrawerTrigger asChild>
@@ -217,9 +232,64 @@ const SequenceVisualization: React.FC<SequenceVisualizationProps> = ({
                   </div>
                 </DrawerContent>
               </Drawer>
+
+              {/* Sequence Details Drawer */}
+              <Drawer>
+                <DrawerTrigger asChild>
+                  <Button variant="outline" size="sm" className="shadow-lg backdrop-blur-sm bg-white/90 text-xs sm:text-sm px-2 sm:px-3">
+                    <span className="hidden sm:inline">Sequence Details</span>
+                    <span className="sm:hidden">Sequence</span>
+                  </Button>
+                </DrawerTrigger>
+                <DrawerContent>
+                  <DrawerHeader>
+                    <DrawerTitle>Sequence Details</DrawerTitle>
+                    <DrawerDescription>View details of the current probe sequence</DrawerDescription>
+                  </DrawerHeader>
+                  <div className="px-4 pb-4 max-h-[70vh] overflow-y-auto">
+                    {probeSequenceSettings && Array.isArray(probeSequenceSettings.operations) && probeSequenceSettings.operations.length > 0 ? (
+                      <div className="flex flex-col gap-2">
+                        {probeSequenceSettings.operations.map((op: ProbeOperation, idx: number) => (
+                          <div key={op.id || idx} className="border rounded p-2 bg-muted/10">
+                            <div className="flex items-center gap-2">
+                              <span className="inline-flex items-center justify-center rounded-full bg-primary text-primary-foreground w-6 h-6 text-xs font-bold">{idx + 1}</span>
+                              <span className="font-semibold">Probe {op.axis} axis {op.direction > 0 ? 'positive' : 'negative'} direction</span>
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-1">
+                              Distance: {op.distance}{machineSettings?.units || 'mm'}<br />
+                              Feed: {op.feedRate}{machineSettings?.units || 'mm'}<br />
+                              Backoff: {op.backoffDistance}{machineSettings?.units || 'mm'}<br />
+                              WCS Offset: {op.wcsOffset}
+                            </div>
+                            {/* Post-moves badges */}
+                            <div className="flex gap-1 mt-2">
+                              {op.postMoves && op.postMoves.length > 0 && (
+                                <span className="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium bg-blue-50 text-blue-600 border-blue-200">
+                                  {op.postMoves.length} post-moves
+                                </span>
+                              )}
+                              {(!op.postMoves || op.postMoves.length === 0) && (
+                                <span className="inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium bg-gray-50 text-gray-600 border-gray-200">
+                                  0 post-moves
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-muted-foreground">No probe sequence defined.</div>
+                    )}
+                  </div>
+                </DrawerContent>
+              </Drawer>
             </div>
           </CardContent>
         </Card>
+      </div>
+      {/* G-code readout at the bottom */}
+      <div className="w-full mt-2">
+        <GCodeReadout gcodeLines={gcodeLines} currentLine={currentLine} contextWindow={3} />
       </div>
     </div>
   );

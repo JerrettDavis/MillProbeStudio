@@ -36,5 +36,8 @@ Object.defineProperty(navigator, 'clipboard', {
   configurable: true
 });
 
+// Mock scrollIntoView for all elements
+window.HTMLElement.prototype.scrollIntoView = function() {};
+
 // Export the mock for use in tests
 (global as any).mockClipboardWriteText = mockWriteText;

@@ -212,27 +212,54 @@ export const CustomModelStock: React.FC<CustomModelStockProps> = ({
     return colors.default;
   };
 
+  // --- HOOKS: must be at top level, before any early returns ---
+  // Debug: Log world coordinates of all 8 corners after transforms (default box)
+  useEffect(() => {
+    if (!(!geometry || !modelFile)) return;
+    if (process.env.NODE_ENV !== 'development') return;
+    const mesh = meshRef.current;
+    if (!mesh) return;
+    const [sx, sy, sz] = size;
+    const localCorners = [
+      new THREE.Vector3(-sx/2, -sy/2, -sz/2),
+      new THREE.Vector3(-sx/2, -sy/2, sz/2),
+      new THREE.Vector3(-sx/2, sy/2, -sz/2),
+      new THREE.Vector3(-sx/2, sy/2, sz/2),
+      new THREE.Vector3(sx/2, -sy/2, -sz/2),
+      new THREE.Vector3(sx/2, -sy/2, sz/2),
+      new THREE.Vector3(sx/2, sy/2, -sz/2),
+      new THREE.Vector3(sx/2, sy/2, sz/2),
+    ];
+    const worldCorners = localCorners.map(v => v.clone().applyMatrix4(mesh.matrixWorld));
+    console.log('[CustomModelStock] (object: Stock, default box) World corners:', worldCorners.map(v => v.toArray()));
+  }, [geometry, modelFile, position, size, rotation]);
+
+  // Debug: Log bounding box corners in world space for loaded model
+  useEffect(() => {
+    if (!geometry || !modelFile) return;
+    if (process.env.NODE_ENV !== 'development') return;
+    const group = groupRef.current;
+    if (!group || !geometry) return;
+    geometry.computeBoundingBox();
+    const bbox = geometry.boundingBox;
+    if (!bbox) return;
+    const min = bbox.min, max = bbox.max;
+    const localCorners = [
+      new THREE.Vector3(min.x, min.y, min.z),
+      new THREE.Vector3(min.x, min.y, max.z),
+      new THREE.Vector3(min.x, max.y, min.z),
+      new THREE.Vector3(min.x, max.y, max.z),
+      new THREE.Vector3(max.x, min.y, min.z),
+      new THREE.Vector3(max.x, min.y, max.z),
+      new THREE.Vector3(max.x, max.y, min.z),
+      new THREE.Vector3(max.x, max.y, max.z),
+    ];
+    const worldCorners = localCorners.map(v => v.clone().applyMatrix4(group.matrixWorld));
+    console.log('[CustomModelStock] (object: Stock, loaded model) World corners:', worldCorners.map(v => v.toArray()));
+  }, [geometry, modelFile, position, size, rotation]);
+
   // If no model is loaded, render default box geometry
   if (!geometry || !modelFile) {
-    // Debug: Log world coordinates of all 8 corners after transforms
-    useEffect(() => {
-      if (process.env.NODE_ENV !== 'development') return;
-      const mesh = meshRef.current;
-      if (!mesh) return;
-      const [sx, sy, sz] = size;
-      const localCorners = [
-        new THREE.Vector3(-sx/2, -sy/2, -sz/2),
-        new THREE.Vector3(-sx/2, -sy/2, sz/2),
-        new THREE.Vector3(-sx/2, sy/2, -sz/2),
-        new THREE.Vector3(-sx/2, sy/2, sz/2),
-        new THREE.Vector3(sx/2, -sy/2, -sz/2),
-        new THREE.Vector3(sx/2, -sy/2, sz/2),
-        new THREE.Vector3(sx/2, sy/2, -sz/2),
-        new THREE.Vector3(sx/2, sy/2, sz/2),
-      ];
-      const worldCorners = localCorners.map(v => v.clone().applyMatrix4(mesh.matrixWorld));
-      console.log('[CustomModelStock] (object: Stock, default box) World corners:', worldCorners.map(v => v.toArray()));
-    }, [position, size, rotation]);
     return (
       <mesh 
         ref={meshRef}
@@ -253,28 +280,6 @@ export const CustomModelStock: React.FC<CustomModelStockProps> = ({
   }
 
   // Use groundedPosition for the loaded model
-  // Debug: Log bounding box corners in world space for loaded model
-  useEffect(() => {
-    if (process.env.NODE_ENV !== 'development') return;
-    const group = groupRef.current;
-    if (!group || !geometry) return;
-    geometry.computeBoundingBox();
-    const bbox = geometry.boundingBox;
-    if (!bbox) return;
-    const min = bbox.min, max = bbox.max;
-    const localCorners = [
-      new THREE.Vector3(min.x, min.y, min.z),
-      new THREE.Vector3(min.x, min.y, max.z),
-      new THREE.Vector3(min.x, max.y, min.z),
-      new THREE.Vector3(min.x, max.y, max.z),
-      new THREE.Vector3(max.x, min.y, min.z),
-      new THREE.Vector3(max.x, min.y, max.z),
-      new THREE.Vector3(max.x, max.y, min.z),
-      new THREE.Vector3(max.x, max.y, max.z),
-    ];
-    const worldCorners = localCorners.map(v => v.clone().applyMatrix4(group.matrixWorld));
-    console.log('[CustomModelStock] (object: Stock, model) World bbox corners:', worldCorners.map(v => v.toArray()));
-  }, [position, rotation, geometry]);
   return (
     <group ref={groupRef} position={position} rotation={rotation}>
       <mesh 

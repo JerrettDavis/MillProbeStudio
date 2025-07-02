@@ -17,7 +17,7 @@ describe('doesProbeCylinderIntersectStock', () => {
     const probePos = { X: 0, Y: 0, Z: 0 };
     const axis = 'X';
     const toolRadius = 1;
-    expect(doesProbeCylinderIntersectStock({ probePos, axis, toolRadius, ...stock, direction: 1 })).toBe(true);
+    expect(doesProbeCylinderIntersectStock({ probePos, axis, toolRadius, ...stock, direction: 1 }).collision).toBe(true);
   });
 
   it('detects collision when probe edge touches the box (X axis)', () => {
@@ -26,7 +26,7 @@ describe('doesProbeCylinderIntersectStock', () => {
     const probePos = { X: 0, Y: 6, Z: 0 }; // Y=6, box max Y=5, toolRadius=1
     const axis = 'X';
     const toolRadius = 1;
-    expect(doesProbeCylinderIntersectStock({ probePos, axis, toolRadius, ...stock, direction: 1 })).toBe(true);
+    expect(doesProbeCylinderIntersectStock({ probePos, axis, toolRadius, ...stock, direction: 1 }).collision).toBe(true);
   });
 
   it('returns false when probe is far from box (X axis)', () => {
@@ -34,29 +34,29 @@ describe('doesProbeCylinderIntersectStock', () => {
     const probePos = { X: 0, Y: 20, Z: 0 };
     const axis = 'X';
     const toolRadius = 1;
-    expect(doesProbeCylinderIntersectStock({ probePos, axis, toolRadius, ...stock, direction: 1 })).toBe(false);
+    expect(doesProbeCylinderIntersectStock({ probePos, axis, toolRadius, ...stock, direction: 1 }).collision).toBe(false);
   });
 
   it('detects collision for Y and Z axes as well', () => {
     const stock = makeStock([0, 0, 0], [10, 10, 10]);
     // Y axis
-    expect(doesProbeCylinderIntersectStock({ probePos: { X: 0, Y: 0, Z: 0 }, axis: 'Y', toolRadius: 1, ...stock, direction: 1 })).toBe(true);
+    expect(doesProbeCylinderIntersectStock({ probePos: { X: 0, Y: 0, Z: 0 }, axis: 'Y', toolRadius: 1, ...stock, direction: 1 }).collision).toBe(true);
     // Z axis
-    expect(doesProbeCylinderIntersectStock({ probePos: { X: 0, Y: 0, Z: 0 }, axis: 'Z', toolRadius: 1, ...stock, direction: 1 })).toBe(true);
+    expect(doesProbeCylinderIntersectStock({ probePos: { X: 0, Y: 0, Z: 0 }, axis: 'Z', toolRadius: 1, ...stock, direction: 1 }).collision).toBe(true);
   });
 
   it('detects edge collision for Y and Z axes', () => {
     const stock = makeStock([0, 0, 0], [10, 10, 10]);
     // Y axis, edge
-    expect(doesProbeCylinderIntersectStock({ probePos: { X: 6, Y: 0, Z: 0 }, axis: 'Y', toolRadius: 1, ...stock, direction: 1 })).toBe(true);
+    expect(doesProbeCylinderIntersectStock({ probePos: { X: 6, Y: 0, Z: 0 }, axis: 'Y', toolRadius: 1, ...stock, direction: 1 }).collision).toBe(true);
     // Z axis, edge
-    expect(doesProbeCylinderIntersectStock({ probePos: { X: 0, Y: 6, Z: 0 }, axis: 'Z', toolRadius: 1, ...stock, direction: 1 })).toBe(true);
+    expect(doesProbeCylinderIntersectStock({ probePos: { X: 0, Y: 6, Z: 0 }, axis: 'Z', toolRadius: 1, ...stock, direction: 1 }).collision).toBe(true);
   });
 
   it('returns false for edge just outside tolerance', () => {
     const stock = makeStock([0, 0, 0], [10, 10, 10]);
     // X axis, just outside
-    expect(doesProbeCylinderIntersectStock({ probePos: { X: 0, Y: 6.51, Z: 0 }, axis: 'X', toolRadius: 1, ...stock, direction: 1 })).toBe(false);
+    expect(doesProbeCylinderIntersectStock({ probePos: { X: 0, Y: 6.51, Z: 0 }, axis: 'X', toolRadius: 1, ...stock, direction: 1 }).collision).toBe(false);
   });
 
   it('detects Y- collision at the correct face (probe center + radius flush with stockMax.Y)', () => {

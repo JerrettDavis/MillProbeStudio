@@ -118,8 +118,9 @@ describe('Machine Geometry Utilities', () => {
     it('should calculate correct stage position', () => {
       const position = calculateStagePosition(mockMachineSettings, mockProbeSequence);
       
-      // Stage X should be inverted from probe X
-      const expectedX = mockMachineSettings.axes.X.max - (mockProbeSequence.initialPosition.X - mockMachineSettings.axes.X.min);
+      // Stage X should be inverted from probe X with stage size offset
+      const stageXSize = 12.7; // mm, stage X size as defined in implementation
+      const expectedX = mockMachineSettings.axes.X.max - (mockProbeSequence.initialPosition.X - mockMachineSettings.axes.X.min) - stageXSize / 2;
       expect(position.x).toBeCloseTo(expectedX);
       
       // Stage Y should be centered
@@ -134,8 +135,9 @@ describe('Machine Geometry Utilities', () => {
     it('should handle missing probe sequence', () => {
       const position = calculateStagePosition(mockMachineSettings, undefined);
       
-      // Should use X.min as default probe position
-      const expectedX = mockMachineSettings.axes.X.max - (mockMachineSettings.axes.X.min - mockMachineSettings.axes.X.min);
+      // Should use X.min as default probe position with stage size offset
+      const stageXSize = 12.7; // mm, stage X size as defined in implementation
+      const expectedX = mockMachineSettings.axes.X.max - (mockMachineSettings.axes.X.min - mockMachineSettings.axes.X.min) - stageXSize / 2;
       expect(position.x).toBeCloseTo(expectedX);
     });
   });
