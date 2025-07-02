@@ -285,13 +285,20 @@ describe('VirtualMill', () => {
       expect(virtualMill.getCurrentPosition().X).toBeCloseTo(5); // 10 + (-5) = 5
     });
     
-    it('should reject movement outside machine limits', () => {
-      expect(() => {
-        virtualMill.executeGCodeSync({
-          type: 'rapid',
-          X: 200 // Outside X limits
-        });
-      }).toThrow('Position');
+    it('should clamp movement outside machine limits to safe position', () => {
+      const initialPosition = virtualMill.getCurrentPosition();
+      
+      virtualMill.executeGCodeSync({
+        type: 'rapid',
+        X: 200 // Outside X limits (max is 100)
+      });
+      
+      const finalPosition = virtualMill.getCurrentPosition();
+      
+      // Should be clamped to X=100 (max limit)
+      expect(finalPosition.X).toBe(100);
+      expect(finalPosition.Y).toBe(initialPosition.Y);
+      expect(finalPosition.Z).toBe(initialPosition.Z);
     });
     
     it('should handle partial axis movement', () => {

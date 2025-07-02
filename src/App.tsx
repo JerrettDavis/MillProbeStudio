@@ -102,7 +102,6 @@ const App = () => {
 
             <TabsContent value="visualize" className="space-y-6">
               <SequenceVisualization
-                probeSequence={probeSequence}
                 machineSettings={machineSettings}
                 probeSequenceSettings={probeSequenceSettings}
                 setMachineSettings={setMachineSettings}

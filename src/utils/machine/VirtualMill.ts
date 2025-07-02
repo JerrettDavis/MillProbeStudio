@@ -1,6 +1,7 @@
 // src/utils/machine/VirtualMill.ts
 
 import type { MachineSettings } from '@/types/machine';
+import { CustomModelCollision, type CustomModelInfo } from './CustomModelCollision';
 
 /**
  * Represents a 3D position in machine coordinates
@@ -79,20 +80,22 @@ export interface Ray {
 /**
  * Command handler function type
  */
-type CommandHandler<T = any> = (state: VirtualMillState, command: GCodeCommand) => T;
+// Kept for potential future use in command registry pattern
+// type CommandHandler<T = any> = (state: VirtualMillState, command: GCodeCommand) => T;
 
 /**
  * Virtual mill internal state (for functional operations)
+ * Kept for potential future use in functional refactoring
  */
-interface VirtualMillState {
-  currentPosition: Position3D;
-  wcsOffset: Position3D;
-  positionMode: PositionMode;
-  coordinateSystem: CoordinateSystem;
-  stockSize: [number, number, number];
-  stockPosition: [number, number, number];
-  toolRadius: number;
-}
+// interface VirtualMillState {
+//   currentPosition: Position3D;
+//   wcsOffset: Position3D;
+//   positionMode: PositionMode;
+//   coordinateSystem: CoordinateSystem;
+//   stockSize: [number, number, number];
+//   stockPosition: [number, number, number];
+//   toolRadius: number;
+// }
 
 /**
  * G-code command for execution
@@ -376,6 +379,10 @@ export class VirtualMill {
   private currentMovement: MovementState | null = null;
   private toolRadius: number = 3; // Default tool radius - should be configurable
   
+  // Custom model for enhanced collision detection
+  private customModel: CustomModelInfo | null = null;
+  private contactPoints: Position3D[] = [];
+  
   // Animation and timing
   private animationId: number | null = null;
 
@@ -421,7 +428,19 @@ export class VirtualMill {
     );
     
     if (!ValidationUtils.isWithinLimits(targetPosition, this.getAxisLimits())) {
-      throw new Error(`Position ${JSON.stringify(targetPosition)} exceeds machine limits`);
+      const limits = this.getAxisLimits();
+      const clampedPosition = {
+        X: Math.max(limits.X[0], Math.min(limits.X[1], targetPosition.X)),
+        Y: Math.max(limits.Y[0], Math.min(limits.Y[1], targetPosition.Y)),
+        Z: Math.max(limits.Z[0], Math.min(limits.Z[1], targetPosition.Z))
+      };
+      
+      console.warn(`Position ${JSON.stringify(targetPosition)} exceeds machine limits. ` +
+                   `Clamping to ${JSON.stringify(clampedPosition)}`);
+      
+      // Use clamped position instead of throwing error
+      this.currentPosition = clampedPosition;
+      return;
     }
     
     this.currentPosition = targetPosition;
@@ -474,6 +493,50 @@ export class VirtualMill {
   setStock(size: [number, number, number], position: [number, number, number]): void {
     this.stockSize = [...size];
     this.stockPosition = [...position];
+  }
+  
+  /**
+   * Set custom model for enhanced collision detection
+   */
+  setCustomModel(modelInfo: CustomModelInfo | null): void {
+    this.customModel = modelInfo;
+    // Clear existing contact points when model changes
+    this.contactPoints = [];
+  }
+  
+  /**
+   * Get current custom model info
+   */
+  getCustomModel(): CustomModelInfo | null {
+    return this.customModel;
+  }
+  
+  /**
+   * Get all recorded contact points
+   */
+  getContactPoints(): Position3D[] {
+    return [...this.contactPoints];
+  }
+  
+  /**
+   * Add a contact point from collision detection
+   */
+  addContactPoint(point: Position3D): void {
+    this.contactPoints.push({ ...point });
+  }
+  
+  /**
+   * Clear all contact points
+   */
+  clearContactPoints(): void {
+    this.contactPoints = [];
+  }
+  
+  /**
+   * Check if using custom model for collision detection
+   */
+  hasCustomModel(): boolean {
+    return this.customModel !== null;
   }
   
   /**
@@ -590,13 +653,17 @@ export class VirtualMill {
    */
   getPhysicalStockBounds(): BoundingBox {
     const [sizeX, sizeY, sizeZ] = this.stockSize;
-    let [posX, posY, posZ] = this.stockPosition;
+    let posX: number;
+    const posY = this.stockPosition[1];
+    const posZ = this.stockPosition[2];
     
     if (this.isHorizontal()) {
       // On horizontal mills, X movement moves the stage, not the spindle
       // So the stock position in world coordinates is affected by machine X position
       // The stage moves opposite to the machine coordinate direction
       posX = this.stockPosition[0] - this.currentPosition.X;
+    } else {
+      posX = this.stockPosition[0];
     }
     
     return {
@@ -666,6 +733,30 @@ export class VirtualMill {
     direction: number,
     distance: number
   ): { hasContact: boolean; contactPoint?: Position3D; contactDistance?: number } {
+    // Check for custom model collision first
+    if (this.customModel) {
+      const customCollision = CustomModelCollision.checkProbeCollision(
+        startPos,
+        axis,
+        direction,
+        distance,
+        this.customModel,
+        this.toolRadius
+      );
+      
+      if (customCollision.collision && customCollision.contactPoint) {
+        // Record contact point
+        this.addContactPoint(customCollision.contactPoint);
+        
+        return {
+          hasContact: true,
+          contactPoint: customCollision.contactPoint,
+          contactDistance: customCollision.penetrationDepth
+        };
+      }
+    }
+    
+    // Fall back to standard box collision detection
     const stockBounds = this.getStockBoundsForCollision();
     
     // Create ray using functional utility
@@ -687,6 +778,9 @@ export class VirtualMill {
     };
 
     const contactPoint = contactPointCalculators[axis](intersection.point);
+    
+    // Record contact point for box collision too
+    this.addContactPoint(contactPoint);
     
     return {
       hasContact: true,
@@ -748,7 +842,20 @@ export class VirtualMill {
     
     // Validate position using functional approach
     if (!ValidationUtils.isWithinLimits(targetPosition, this.getAxisLimits())) {
-      throw new Error(`Position ${JSON.stringify(targetPosition)} exceeds machine limits`);
+      const limits = this.getAxisLimits();
+      const clampedPosition = {
+        X: Math.max(limits.X[0], Math.min(limits.X[1], targetPosition.X)),
+        Y: Math.max(limits.Y[0], Math.min(limits.Y[1], targetPosition.Y)),
+        Z: Math.max(limits.Z[0], Math.min(limits.Z[1], targetPosition.Z))
+      };
+      
+      console.warn(`Real-time movement position ${JSON.stringify(targetPosition)} exceeds machine limits. ` +
+                   `Clamping to ${JSON.stringify(clampedPosition)}`);
+      
+      // Use clamped position for movement
+      targetPosition.X = clampedPosition.X;
+      targetPosition.Y = clampedPosition.Y;
+      targetPosition.Z = clampedPosition.Z;
     }
     
     // Calculate movement parameters using pure functions
@@ -1032,7 +1139,7 @@ export class VirtualMill {
   checkProbeCollision(
     probePosition: Position3D,
     axis: 'X' | 'Y' | 'Z',
-    toolRadius: number, // Legacy parameter - not used in functional implementation
+    _toolRadius: number, // Legacy parameter - not used in functional implementation
     direction: number
   ): CollisionResult {
     // Use the new functional collision prediction

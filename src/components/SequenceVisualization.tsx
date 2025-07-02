@@ -21,13 +21,13 @@ import GCodeReadout from './visualization/GCodeReadout';
 import useProbeSimulation from '@/hooks/visualization/useProbeSimulation';
 import { parseGCode } from '@/utils/gcodeParser';
 // Use types from src/types/machine for ProbeOperation and ProbeSequenceSettings
-import type { ProbeOperation, ProbeSequenceSettings, MachineSettings } from '@/types/machine';
+import type { ProbeOperation, ProbeSequenceSettings, MachineSettings, AxisConfig } from '@/types/machine';
 
 interface SequenceVisualizationProps {
   machineSettings?: MachineSettings;
   probeSequenceSettings?: ProbeSequenceSettings;
   setMachineSettings?: React.Dispatch<React.SetStateAction<MachineSettings>>;
-  updateAxisConfig?: (axis: 'X' | 'Y' | 'Z', field: string, value: number | string) => void;
+  updateAxisConfig?: (axis: 'X' | 'Y' | 'Z', field: keyof AxisConfig, value: number | string) => void;
 }
 
 const SequenceVisualization: React.FC<SequenceVisualizationProps> = ({

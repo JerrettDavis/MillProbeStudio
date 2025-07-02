@@ -122,6 +122,33 @@ export function generateSimulationSteps(
 }
 
 /**
+ * Calculate distance from a point to a rectangle (2D)
+ */
+function distancePointToRectangle(
+  point: { x: number; y: number },
+  rectMin: { x: number; y: number },
+  rectMax: { x: number; y: number }
+): number {
+  const dx = Math.max(0, Math.max(rectMin.x - point.x, point.x - rectMax.x));
+  const dy = Math.max(0, Math.max(rectMin.y - point.y, point.y - rectMax.y));
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+/**
+ * Find the closest point on a rectangle to a given point
+ */
+function closestPointOnRectangle(
+  point: { x: number; y: number },
+  rectMin: { x: number; y: number },
+  rectMax: { x: number; y: number }
+): { x: number; y: number } {
+  return {
+    x: Math.max(rectMin.x, Math.min(rectMax.x, point.x)),
+    y: Math.max(rectMin.y, Math.min(rectMax.y, point.y))
+  };
+}
+
+/**
  * Check if probe cylinder (edge) intersects stock bounding box
  */
 export function doesProbeCylinderIntersectStock({
@@ -139,99 +166,154 @@ export function doesProbeCylinderIntersectStock({
   stockMax: { X: number; Y: number; Z: number };
   direction: number;
 }): { collision: boolean; contactPoint?: { X: number; Y: number; Z: number } } {
-  // Project the probe tip onto the plane perpendicular to the probe axis
-  // and check if the circle (cylinder cross-section) overlaps the box face.
-  // For each axis, check the 2D circle/rectangle overlap in the other two axes.
+  // For cylindrical collision detection:
+  // 1. Check if the probe cylinder intersects with the stock volume
+  // 2. The cylinder axis extends along the movement axis
+  // 3. The cylinder has radius toolRadius in the perpendicular plane
+  
   if (axis === 'X') {
-    // Probe moves along X, cylinder axis is X, circle in YZ
-    const y = probePos.Y;
-    const z = probePos.Z;
-    // Clamp Y/Z to box
-    const closestY = Math.max(stockMin.Y, Math.min(y, stockMax.Y));
-    const closestZ = Math.max(stockMin.Z, Math.min(z, stockMax.Z));
-    const distSq = (y - closestY) ** 2 + (z - closestZ) ** 2;
+    // Probe moves along X axis, cylinder cross-section is in YZ plane
+    const probePoint = { x: probePos.Y, y: probePos.Z };
+    const stockRect = { 
+      x: stockMin.Y, y: stockMin.Z 
+    };
+    const stockRectMax = { 
+      x: stockMax.Y, y: stockMax.Z 
+    };
     
-    if (distSq <= toolRadius ** 2) {
-      // Check collision based on direction first, then fallback to inside check
-      if (direction > 0) {
-        // Moving in X+ direction: check if front edge hits stockMin.X
-        const frontEdgeX = probePos.X + toolRadius;
-        if (frontEdgeX >= stockMin.X) {
-          return { collision: true, contactPoint: { X: stockMin.X, Y: probePos.Y, Z: probePos.Z } };
-        }
-      } else if (direction < 0) {
-        // Moving in X- direction: check if front edge hits stockMax.X
-        const frontEdgeX = probePos.X - toolRadius;
-        if (frontEdgeX <= stockMax.X) {
-          return { collision: true, contactPoint: { X: stockMax.X, Y: probePos.Y, Z: probePos.Z } };
+    // Check if cylinder intersects with stock projection in YZ plane
+    const distance = distancePointToRectangle(probePoint, stockRect, stockRectMax);
+    
+    if (distance <= toolRadius) {
+      // Cylinder intersects in YZ plane, now check X axis intersection
+      let collision = false;
+      let contactPoint: { X: number; Y: number; Z: number } | undefined;
+      
+      // Check if probe center is already inside stock X bounds
+      if (probePos.X >= stockMin.X && probePos.X <= stockMax.X) {
+        collision = true;
+        const closestPoint = closestPointOnRectangle(probePoint, stockRect, stockRectMax);
+        contactPoint = { X: probePos.X, Y: closestPoint.x, Z: closestPoint.y };
+      } else {
+        // Check if any part of the cylinder intersects with the stock X bounds
+        const cylinderMinX = probePos.X - toolRadius;
+        const cylinderMaxX = probePos.X + toolRadius;
+        
+        if (cylinderMaxX >= stockMin.X && cylinderMinX <= stockMax.X) {
+          collision = true;
+          // Calculate contact point based on which stock face is hit
+          let contactX: number;
+          if (direction > 0) {
+            // Moving X+: contact with stockMin.X face
+            contactX = Math.max(stockMin.X, cylinderMinX);
+          } else {
+            // Moving X-: contact with stockMax.X face
+            contactX = Math.min(stockMax.X, cylinderMaxX);
+          }
+          
+          const closestPoint = closestPointOnRectangle(probePoint, stockRect, stockRectMax);
+          contactPoint = { X: contactX, Y: closestPoint.x, Z: closestPoint.y };
         }
       }
       
-      // Check if probe is already overlapping in X axis (inside the stock)
-      if (probePos.X >= stockMin.X && probePos.X <= stockMax.X) {
-        return { collision: true, contactPoint: { X: probePos.X, Y: probePos.Y, Z: probePos.Z } };
+      if (collision) {
+        return { collision: true, contactPoint };
       }
     }
   } else if (axis === 'Y') {
-    // Probe moves along Y, cylinder axis is Y, circle in XZ
-    const x = probePos.X;
-    const z = probePos.Z;
-    // Check if the probe cylinder (in XZ plane) overlaps the stock in XZ
-    const closestX = Math.max(stockMin.X, Math.min(x, stockMax.X));
-    const closestZ = Math.max(stockMin.Z, Math.min(z, stockMax.Z));
-    const distSq = (x - closestX) ** 2 + (z - closestZ) ** 2;
+    // Probe moves along Y axis, cylinder cross-section is in XZ plane
+    const probePoint = { x: probePos.X, y: probePos.Z };
+    const stockRect = { 
+      x: stockMin.X, y: stockMin.Z 
+    };
+    const stockRectMax = { 
+      x: stockMax.X, y: stockMax.Z 
+    };
     
-    if (distSq <= toolRadius ** 2) {
-      // Check collision based on direction first, then fallback to inside check
-      if (direction > 0) {
-        // Moving in Y+ direction: check if front edge hits stockMin.Y
-        const frontEdgeY = probePos.Y + toolRadius;
-        if (frontEdgeY >= stockMin.Y) {
-          return { collision: true, contactPoint: { X: probePos.X, Y: stockMin.Y, Z: probePos.Z } };
-        }
-      } else if (direction < 0) {
-        // Moving in Y- direction: check if front edge hits stockMax.Y
-        const frontEdgeY = probePos.Y - toolRadius;
-        if (frontEdgeY <= stockMax.Y) {
-          return { collision: true, contactPoint: { X: probePos.X, Y: stockMax.Y, Z: probePos.Z } };
+    const distance = distancePointToRectangle(probePoint, stockRect, stockRectMax);
+    
+    if (distance <= toolRadius) {
+      let collision = false;
+      let contactPoint: { X: number; Y: number; Z: number } | undefined;
+      
+      // Check if probe center is already inside stock Y bounds
+      if (probePos.Y >= stockMin.Y && probePos.Y <= stockMax.Y) {
+        collision = true;
+        const closestPoint = closestPointOnRectangle(probePoint, stockRect, stockRectMax);
+        contactPoint = { X: closestPoint.x, Y: probePos.Y, Z: closestPoint.y };
+      } else {
+        // Check if any part of the cylinder intersects with the stock Y bounds
+        const cylinderMinY = probePos.Y - toolRadius;
+        const cylinderMaxY = probePos.Y + toolRadius;
+        
+        if (cylinderMaxY >= stockMin.Y && cylinderMinY <= stockMax.Y) {
+          collision = true;
+          let contactY: number;
+          if (direction > 0) {
+            // Moving Y+: contact with stockMin.Y face
+            contactY = Math.max(stockMin.Y, cylinderMinY);
+          } else {
+            // Moving Y-: contact with stockMax.Y face
+            contactY = Math.min(stockMax.Y, cylinderMaxY);
+          }
+          
+          const closestPoint = closestPointOnRectangle(probePoint, stockRect, stockRectMax);
+          contactPoint = { X: closestPoint.x, Y: contactY, Z: closestPoint.y };
         }
       }
       
-      // Check if probe is already overlapping in Y axis (inside the stock)
-      if (probePos.Y >= stockMin.Y && probePos.Y <= stockMax.Y) {
-        return { collision: true, contactPoint: { X: probePos.X, Y: probePos.Y, Z: probePos.Z } };
+      if (collision) {
+        return { collision: true, contactPoint };
       }
     }
   } else if (axis === 'Z') {
-    // Probe moves along Z, cylinder axis is Z, circle in XY
-    const x = probePos.X;
-    const y = probePos.Y;
-    const closestX = Math.max(stockMin.X, Math.min(x, stockMax.X));
-    const closestY = Math.max(stockMin.Y, Math.min(y, stockMax.Y));
-    const distSq = (x - closestX) ** 2 + (y - closestY) ** 2;
+    // Probe moves along Z axis, cylinder cross-section is in XY plane
+    const probePoint = { x: probePos.X, y: probePos.Y };
+    const stockRect = { 
+      x: stockMin.X, y: stockMin.Y 
+    };
+    const stockRectMax = { 
+      x: stockMax.X, y: stockMax.Y 
+    };
     
-    if (distSq <= toolRadius ** 2) {
-      // Check collision based on direction first, then fallback to inside check
-      if (direction > 0) {
-        // Moving in Z+ direction: check if front edge hits stockMin.Z
-        const frontEdgeZ = probePos.Z + toolRadius;
-        if (frontEdgeZ >= stockMin.Z) {
-          return { collision: true, contactPoint: { X: probePos.X, Y: probePos.Y, Z: stockMin.Z } };
-        }
-      } else if (direction < 0) {
-        // Moving in Z- direction: check if front edge hits stockMax.Z
-        const frontEdgeZ = probePos.Z - toolRadius;
-        if (frontEdgeZ <= stockMax.Z) {
-          return { collision: true, contactPoint: { X: probePos.X, Y: probePos.Y, Z: stockMax.Z } };
+    const distance = distancePointToRectangle(probePoint, stockRect, stockRectMax);
+    
+    if (distance <= toolRadius) {
+      let collision = false;
+      let contactPoint: { X: number; Y: number; Z: number } | undefined;
+      
+      // Check if probe center is already inside stock Z bounds
+      if (probePos.Z >= stockMin.Z && probePos.Z <= stockMax.Z) {
+        collision = true;
+        const closestPoint = closestPointOnRectangle(probePoint, stockRect, stockRectMax);
+        contactPoint = { X: closestPoint.x, Y: closestPoint.y, Z: probePos.Z };
+      } else {
+        // Check if any part of the cylinder intersects with the stock Z bounds
+        const cylinderMinZ = probePos.Z - toolRadius;
+        const cylinderMaxZ = probePos.Z + toolRadius;
+        
+        if (cylinderMaxZ >= stockMin.Z && cylinderMinZ <= stockMax.Z) {
+          collision = true;
+          let contactZ: number;
+          if (direction > 0) {
+            // Moving Z+: contact with stockMin.Z face
+            contactZ = Math.max(stockMin.Z, cylinderMinZ);
+          } else {
+            // Moving Z-: contact with stockMax.Z face
+            contactZ = Math.min(stockMax.Z, cylinderMaxZ);
+          }
+          
+          const closestPoint = closestPointOnRectangle(probePoint, stockRect, stockRectMax);
+          contactPoint = { X: closestPoint.x, Y: closestPoint.y, Z: contactZ };
         }
       }
       
-      // Check if probe is already overlapping in Z axis (inside the stock)
-      if (probePos.Z >= stockMin.Z && probePos.Z <= stockMax.Z) {
-        return { collision: true, contactPoint: { X: probePos.X, Y: probePos.Y, Z: probePos.Z } };
+      if (collision) {
+        return { collision: true, contactPoint };
       }
     }
   }
+  
   return { collision: false };
 }
 
@@ -441,7 +523,7 @@ function useProbeSimulation(parsedGCode: ParsedGCodeLine[], initialPosition: { X
     }
 
     animationRef.current = requestAnimationFrame(animate);
-  }, [pauseSimulationAndReset, setSimulationStep, setSimulationPosition, addContactPoint, simulationState.currentStepIndex]);
+  }, [pauseSimulationAndReset, setSimulationStep, setSimulationPosition, addContactPoint, simulationState.currentStepIndex, getStockBounds]);
 
   // Only run animation loop if simulation is playing and active
   useEffect(() => {

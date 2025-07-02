@@ -26,9 +26,9 @@ describe('useVirtualMillSimulation', () => {
   const mockMachineSettings = {
     units: 'mm' as const,
     axes: {
-      X: { positiveDirection: 'Down' as const, negativeDirection: 'Up' as const, polarity: 1, min: -86, max: -0.5 },
-      Y: { positiveDirection: 'Right' as const, negativeDirection: 'Left' as const, polarity: 1, min: -0.5, max: -241.50 },
-      Z: { positiveDirection: 'In' as const, negativeDirection: 'Out' as const, polarity: -1, min: -0.5, max: -78.50 }
+      X: { positiveDirection: 'Down' as const, negativeDirection: 'Up' as const, polarity: 1 as const, min: -86, max: -0.5 },
+      Y: { positiveDirection: 'Right' as const, negativeDirection: 'Left' as const, polarity: 1 as const, min: -0.5, max: -241.50 },
+      Z: { positiveDirection: 'In' as const, negativeDirection: 'Out' as const, polarity: -1 as const, min: -0.5, max: -78.50 }
     },
     machineOrientation: 'horizontal' as const,
     stageDimensions: [12.7, 304.8, 63.5] as [number, number, number]
@@ -61,9 +61,30 @@ describe('useVirtualMillSimulation', () => {
           simulationState: mockSimulationState,
           machineSettings: mockMachineSettings,
           visualizationSettings: mockVisualizationSettings,
+          probeSequence: [],
+          probeSequenceSettings: {
+            initialPosition: { X: -78, Y: -100, Z: -41 },
+            dwellsBeforeProbe: 15,
+            spindleSpeed: 5000,
+            units: 'mm' as const,
+            endmillSize: {
+              input: '1/8',
+              unit: 'fraction' as const,
+              sizeInMM: 3.175
+            },
+            operations: []
+          },
+          generatedGCode: '',
+          importCounter: 0,
+          cameraSettings: {
+            position: { x: -200, y: 200, z: -100 },
+            preset: null,
+            pivotMode: 'tool' as const,
+            isManuallyMoved: false
+          },
           ...mockStoreActions
         };
-        return selector(state);
+        return selector(state as any);
       }
       return mockStoreActions;
     });
@@ -150,7 +171,7 @@ describe('useVirtualMillSimulation', () => {
           postMoves: [
             {
               id: 'post-1',
-              type: 'linear' as const,
+              type: 'rapid' as const,
               description: 'Post-move',
               axesValues: { Z: 5 },
               positionMode: 'relative' as const,

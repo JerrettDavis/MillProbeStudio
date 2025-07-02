@@ -85,7 +85,8 @@ describe('Integration: Scene3D probe sequence visualization', () => {
     );
     // Instead of checking the scene graph, check that ProbePathVisualization was called with correct props
     expect(mockProbePathVisualization).toHaveBeenCalled();
-    const call = mockProbePathVisualization.mock.calls[0]?.[0];
+    expect(mockProbePathVisualization.mock.calls.length).toBeGreaterThan(0);
+    const call = (mockProbePathVisualization.mock.calls as any[])[0][0];
     expect(call).toEqual(
       expect.objectContaining({
         operations: mockProbeSequence.operations,

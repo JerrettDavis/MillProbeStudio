@@ -1,5 +1,4 @@
 import { render, act } from '@testing-library/react';
-import { useRef } from 'react';
 import { describe, it, expect } from 'vitest';
 import useProbeSimulation from '../useProbeSimulation';
 
@@ -38,9 +37,9 @@ describe('useProbeSimulation', () => {
     // Initial state
     const result = resultRef.current;
     expect(result).toBeTruthy();
-    expect(result!.isPlaying).toBe(false);
-    const stepIndexBefore = result!.currentStepIndex;
-    const stepObjBefore = result!.currentStep;
+    expect((result as any)!.isPlaying).toBe(false);
+    const stepIndexBefore = (result as any)!.currentStepIndex;
+    const stepObjBefore = (result as any)!.currentStep;
     // Simulate rerender (e.g. operations/position change)
     act(() => {
       render(<HookWrapper operations={mockOperations} position={initialPosition} resultRef={resultRef} />);
@@ -48,8 +47,8 @@ describe('useProbeSimulation', () => {
     // State should not change
     const resultAfter = resultRef.current;
     expect(resultAfter).toBeTruthy();
-    expect(resultAfter!.isPlaying).toBe(false);
-    expect(resultAfter!.currentStepIndex).toBe(stepIndexBefore);
-    expect(resultAfter!.currentStep).toEqual(stepObjBefore);
+    expect((resultAfter as any)!.isPlaying).toBe(false);
+    expect((resultAfter as any)!.currentStepIndex).toBe(stepIndexBefore);
+    expect((resultAfter as any)!.currentStep).toEqual(stepObjBefore);
   });
 });
