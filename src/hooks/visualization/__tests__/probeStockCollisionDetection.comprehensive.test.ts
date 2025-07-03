@@ -37,8 +37,8 @@ describe('Comprehensive Probe-Stock Collision Detection', () => {
       const direction = 1;
 
       it('should detect collision when probe tip touches front face (stockMin.X)', () => {
-        // Probe tip at stockMin.X - probe should be at stockMin.X + toolRadius
-        const probePos = { X: -3, Y: 0, Z: 0 }; // tip at -5, front edge at -5
+        // Probe tip at stockMin.X - probe should be at stockMin.X - toolRadius for X+ movement
+        const probePos = { X: -7, Y: 0, Z: 0 }; // tip at -5, front edge at -5
         const result = doesProbeCylinderIntersectStock({ probePos, axis, toolRadius, ...stock, direction });
         expect(result.collision).toBe(true);
         expect(result.contactPoint).toEqual({ X: -5, Y: 0, Z: 0 });
@@ -102,7 +102,7 @@ describe('Comprehensive Probe-Stock Collision Detection', () => {
       const direction = 1;
 
       it('should detect collision when probe tip touches front face (stockMin.Y)', () => {
-        const probePos = { X: 0, Y: -3.5, Z: 0 }; // tip at -5
+        const probePos = { X: 0, Y: -7, Z: 0 }; // tip at -5
         const result = doesProbeCylinderIntersectStock({ probePos, axis, toolRadius, ...stock, direction });
         expect(result.collision).toBe(true);
         expect(result.contactPoint).toEqual({ X: 0, Y: -5, Z: 0 });

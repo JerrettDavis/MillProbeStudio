@@ -59,27 +59,25 @@ describe('doesProbeCylinderIntersectStock', () => {
     expect(doesProbeCylinderIntersectStock({ probePos: { X: 0, Y: 6.51, Z: 0 }, axis: 'X', toolRadius: 1, ...stock, direction: 1 }).collision).toBe(false);
   });
 
-  it('detects Y- collision at the correct face (probe center + radius flush with stockMax.Y)', () => {
+  it('detects Y- collision based on perpendicular plane intersection', () => {
     // Stock centered at Y=0, size 10, so stockMax.Y = 5
     const stock = makeStock([0, 0, 0], [10, 10, 10]);
     const axis = 'Y';
     const toolRadius = 1;
-    // Probe moving Y-, should collide when probePos.Y - toolRadius is within 0.01 of stockMax.Y
-    // Try just before collision
-    let probePos = { X: 0, Y: 6.02, Z: 0 }; // front face at 5.02
+    // Probe moving Y-, collision detected when probe cylinder intersects stock in XZ plane
+    // Probe centered at X=0, Z=0 (within stock bounds) should always collide regardless of Y position
+    let probePos = { X: 0, Y: 6.02, Z: 0 };
     let result = doesProbeCylinderIntersectStock({ probePos, axis, toolRadius, ...stock, direction: -1 });
-    expect(result.collision).toBe(false);
-    // Try just at collision
-    probePos = { X: 0, Y: 6.01, Z: 0 }; // front face at 5.01
-    result = doesProbeCylinderIntersectStock({ probePos, axis, toolRadius, ...stock, direction: -1 });
-    expect(result.collision).toBe(false);
-    probePos = { X: 0, Y: 6.0, Z: 0 }; // front face at 5.0
-    result = doesProbeCylinderIntersectStock({ probePos, axis, toolRadius, ...stock, direction: -1 });
     expect(result.collision).toBe(true);
     expect(result.contactPoint).toEqual({ X: 0, Y: 5, Z: 0 });
-    // Try just after collision
-    probePos = { X: 0, Y: 5.99, Z: 0 }; // front face at 4.99
+    // Probe outside stock bounds in XZ plane should not collide (probe center + radius outside bounds)
+    probePos = { X: 7, Y: 6.02, Z: 0 }; // X=7 + radius=1 = 8, outside stock bounds [-5, 5]
+    result = doesProbeCylinderIntersectStock({ probePos, axis, toolRadius, ...stock, direction: -1 });
+    expect(result.collision).toBe(false);
+    // Probe edge touching stock bounds in XZ plane should collide
+    probePos = { X: 4, Y: 6.02, Z: 0 }; // X edge at 5 touches stock boundary
     result = doesProbeCylinderIntersectStock({ probePos, axis, toolRadius, ...stock, direction: -1 });
     expect(result.collision).toBe(true);
+    expect(result.contactPoint).toEqual({ X: 4, Y: 5, Z: 0 });
   });
 });

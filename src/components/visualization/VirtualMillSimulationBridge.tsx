@@ -64,7 +64,7 @@ export const VirtualMillSimulationBridge: React.FC<VirtualMillSimulationBridgePr
     }
   }, [simulationState?.speed, virtualMillSim.virtualMill]);
 
-  // Debug logging for development
+  // Debug logging for development (only when key values change)
   useEffect(() => {
     if (process.env.NODE_ENV === 'development') {
       console.log('VirtualMill Simulation State:', {
@@ -76,7 +76,13 @@ export const VirtualMillSimulationBridge: React.FC<VirtualMillSimulationBridgePr
         hasCustomModel: virtualMillSim.hasCustomModel
       });
     }
-  }, [virtualMillSim]);
+  }, [
+    virtualMillSim.isReady, 
+    virtualMillSim.totalSteps, 
+    virtualMillSim.currentStep?.id,
+    virtualMillSim.contactPoints.length,
+    virtualMillSim.hasCustomModel
+  ]); // Only log when these specific values change
 
   return (
     <VirtualMillContext.Provider value={contextValue}>

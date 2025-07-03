@@ -7,6 +7,9 @@ import type { ProbeOperation } from '@/types/machine';
 import { useCustomModelInfo } from './useCustomModelInfo';
 import { useNotifications } from '@/hooks/useNotifications';
 
+// Debug flag to control verbose logging
+const DEBUG_SIMULATION = false;
+
 export interface VirtualMillSimulationStep {
   id: string;
   type: 'rapid' | 'linear' | 'probe' | 'dwell' | 'wcs';
@@ -43,9 +46,10 @@ export function useVirtualMillSimulation(
   // VirtualMill instance
   const virtualMillRef = useRef<VirtualMill | null>(null);
   const animationRef = useRef<number | null>(null);
-  const regenerationTrigger = useRef(0); // Counter to force step regeneration
+  const [regenerationTrigger, setRegenerationTrigger] = useState(0); // State-based trigger for step regeneration
   const [steps, setSteps] = useState<VirtualMillSimulationStep[]>([]);
   const [contactPoints, setContactPoints] = useState<Position3D[]>([]);
+  const [isGeneratingSteps, setIsGeneratingSteps] = useState(false); // Prevent concurrent generation
 
   // Custom model information
   const { customModelInfo } = useCustomModelInfo(
@@ -60,30 +64,36 @@ export function useVirtualMillSimulation(
 
   // Initialize VirtualMill
   useEffect(() => {
-    if (!virtualMillRef.current && probeSequence) {
+    if (!virtualMillRef.current && probeSequence?.operations?.length) {
       const initialPosition = probeSequence.initialPosition;
       virtualMillRef.current = new VirtualMill(machineSettings, initialPosition);
-      console.log('Initialized VirtualMill with position:', initialPosition);
+      if (DEBUG_SIMULATION) {
+        console.log('Initialized VirtualMill with position:', initialPosition);
+      }
     }
   }, [machineSettings, probeSequence]);
 
   // Update stock configuration when settings change
   useEffect(() => {
-    if (virtualMillRef.current && visualizationSettings) {
+    if (virtualMillRef.current && visualizationSettings && probeSequence?.operations?.length) {
       virtualMillRef.current.setStock(
         visualizationSettings.stockSize,
         visualizationSettings.stockPosition
       );
-      console.log('Updated VirtualMill stock configuration:', {
-        size: visualizationSettings.stockSize,
-        position: visualizationSettings.stockPosition
-      });
+      if (DEBUG_SIMULATION) {
+        console.log('Updated VirtualMill stock configuration:', {
+          size: visualizationSettings.stockSize,
+          position: visualizationSettings.stockPosition
+        });
+      }
       
       // Force regeneration of steps since stock affects collision detection
-      regenerationTrigger.current += 1;
-      console.log('Stock configuration changed - triggered step regeneration');
+      setRegenerationTrigger(prev => prev + 1);
+      if (DEBUG_SIMULATION) {
+        console.log('Stock configuration changed - triggered step regeneration');
+      }
     }
-  }, [visualizationSettings]);
+  }, [visualizationSettings, probeSequence?.operations?.length]);
 
   // Configure custom model for enhanced collision detection
   useEffect(() => {
@@ -118,6 +128,11 @@ export function useVirtualMillSimulation(
 
   // Generate simulation steps from probe sequence
   useEffect(() => {
+    // Prevent concurrent step generation
+    if (isGeneratingSteps) {
+      return;
+    }
+
     if (!probeSequence?.operations.length) {
       setSteps([]);
       return;
@@ -125,17 +140,24 @@ export function useVirtualMillSimulation(
 
     const mill = virtualMillRef.current;
     if (!mill) {
-      console.log('VirtualMill not ready for step generation');
+      if (DEBUG_SIMULATION) {
+        console.log('VirtualMill not ready for step generation');
+      }
       return;
     }
 
-    console.log('Generating simulation steps with regeneration trigger:', regenerationTrigger.current);
+    setIsGeneratingSteps(true);
+    if (DEBUG_SIMULATION) {
+      console.log('Generating simulation steps with regeneration trigger:', regenerationTrigger);
+    }
 
     try {
       // Reset mill to initial position before generating steps
       const initialPos = probeSequence.initialPosition;
       mill.reset(initialPos);
-      console.log('Reset mill to initial position for step generation:', initialPos);
+      if (DEBUG_SIMULATION) {
+        console.log('Reset mill to initial position for step generation:', initialPos);
+      }
 
       const simulationSteps: VirtualMillSimulationStep[] = [];
       let stepId = 0;
@@ -183,7 +205,9 @@ export function useVirtualMillSimulation(
               };
               
               mill.executeGCodeSync(safeCommand);
-              console.log(`Recovered by clamping position to machine limits:`, clampedPos);
+              if (DEBUG_SIMULATION) {
+                console.log(`Recovered by clamping position to machine limits:`, clampedPos);
+              }
               return true;
             } catch (recoveryError) {
               console.error('Failed to recover from machine limits error:', recoveryError);
@@ -194,7 +218,9 @@ export function useVirtualMillSimulation(
               // Reset to a safe position as last resort
               try {
                 mill.reset({ X: 0, Y: 0, Z: 0 });
-                console.log('Reset mill to origin as emergency fallback');
+                if (DEBUG_SIMULATION) {
+                  console.log('Reset mill to origin as emergency fallback');
+                }
               } catch (resetError) {
                 console.error('Emergency reset failed:', resetError);
               }
@@ -295,9 +321,12 @@ export function useVirtualMillSimulation(
       );
     }
 
+    setIsGeneratingSteps(false); // Allow next generation
+
   } catch (error) {
     console.error('Critical error during simulation generation:', error);
     setSteps([]);
+    setIsGeneratingSteps(false); // Allow retry
     
     memoizedShowError(
       'Simulation Generation Failed',
@@ -308,13 +337,16 @@ export function useVirtualMillSimulation(
     if (mill) {
       try {
         mill.reset({ X: 0, Y: 0, Z: 0 });
-        console.log('Reset mill to origin due to critical error');
+        if (DEBUG_SIMULATION) {
+          console.log('Reset mill to origin due to critical error');
+        }
       } catch (resetError) {
         console.error('Failed to reset mill after critical error:', resetError);
       }
     }
+    setIsGeneratingSteps(false); // Ensure flag is reset even on error
   }
-  }, [probeSequence, memoizedShowWarning, memoizedShowError]); // Include regeneration trigger in dependencies
+  }, [probeSequence, regenerationTrigger, isGeneratingSteps, memoizedShowWarning, memoizedShowError]); // Include regeneration trigger in dependencies
 
   // Animation loop using VirtualMill's real-time movement
   const animate = useCallback(async () => {
@@ -407,7 +439,9 @@ export function useVirtualMillSimulation(
     if (!mill || !probeSequence) return;
 
     if (!simulationState?.isActive) {
-      console.log('Resetting VirtualMill simulation to initial state');
+      if (DEBUG_SIMULATION) {
+        console.log('Resetting VirtualMill simulation to initial state');
+      }
       
       // Cancel any pending animations first
       if (animationRef.current) {
@@ -428,22 +462,26 @@ export function useVirtualMillSimulation(
       // Immediately update position in store to prevent jumps
       setSimulationPosition?.(probeSequence.initialPosition);
       
-      console.log('VirtualMill reset complete. Position:', mill.getCurrentPosition());
+      if (DEBUG_SIMULATION) {
+        console.log('VirtualMill reset complete. Position:', mill.getCurrentPosition());
+      }
     }
   }, [simulationState?.isActive, probeSequence, setSimulationPosition]);
 
   // Force regeneration of simulation steps when key parameters change
   useEffect(() => {
-    if (virtualMillRef.current && probeSequence) {
-      console.log('Parameter change detected - clearing steps to force regeneration');
-      regenerationTrigger.current += 1;
+    if (virtualMillRef.current && probeSequence?.operations?.length) {
+      if (DEBUG_SIMULATION) {
+        console.log('Parameter change detected - clearing steps to force regeneration');
+      }
+      setRegenerationTrigger(prev => prev + 1);
       setSteps([]); // This will trigger step regeneration
       setContactPoints([]); // Clear contact points as they're no longer valid
     }
   }, [
     visualizationSettings?.stockRotation, 
     customModelInfo,
-    probeSequence // Include probeSequence to regenerate when sequence changes
+    probeSequence?.operations?.length // Include probeSequence to regenerate when sequence changes
     // Note: stockSize and stockPosition are handled separately above to avoid double-regeneration
   ]);
 

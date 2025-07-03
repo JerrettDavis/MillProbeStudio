@@ -204,17 +204,51 @@ export class CustomModelCollision {
     point: Position3D,
     modelInfo: CustomModelInfo
   ): boolean {
-    // Create a ray from the point in any direction
-    const raycaster = new THREE.Raycaster(
-      new THREE.Vector3(point.X, point.Y, point.Z),
-      new THREE.Vector3(1, 0, 0) // Ray in +X direction
-    );
-    
-    const mesh = this.createMeshForIntersection(modelInfo);
-    const intersections = raycaster.intersectObject(mesh);
-    mesh.geometry.dispose();
-    
-    // If odd number of intersections, point is inside
-    return intersections.length % 2 === 1;
+    try {
+      // First, check if point is within the bounding box
+      const bbox = this.getModelBoundingBox(modelInfo);
+      if (point.X < bbox.min.X || point.X > bbox.max.X ||
+          point.Y < bbox.min.Y || point.Y > bbox.max.Y ||
+          point.Z < bbox.min.Z || point.Z > bbox.max.Z) {
+        return false;
+      }
+
+      // Create a mesh for intersection testing
+      const mesh = this.createMeshForIntersection(modelInfo);
+      
+      // Try multiple ray directions to avoid edge cases
+      const directions = [
+        new THREE.Vector3(1, 0, 0),
+        new THREE.Vector3(0, 1, 0), 
+        new THREE.Vector3(0, 0, 1),
+        new THREE.Vector3(1, 1, 0).normalize(),
+        new THREE.Vector3(1, 0, 1).normalize()
+      ];
+
+      // Test each direction and use majority vote
+      let insideCount = 0;
+      const rayOrigin = new THREE.Vector3(point.X, point.Y, point.Z);
+      
+      for (const direction of directions) {
+        const raycaster = new THREE.Raycaster(rayOrigin, direction);
+        const intersections = raycaster.intersectObject(mesh);
+        
+        // Count intersections in the positive direction only
+        const forwardIntersections = intersections.filter(intersection => intersection.distance > 0);
+        
+        if (forwardIntersections.length % 2 === 1) {
+          insideCount++;
+        }
+      }
+      
+      mesh.geometry.dispose();
+      
+      // Return true if majority of rays indicate inside
+      return insideCount > directions.length / 2;
+      
+    } catch (error) {
+      console.error('Error in isPointInside:', error);
+      return false;
+    }
   }
 }

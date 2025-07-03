@@ -122,9 +122,10 @@ vi.mock('@/store', () => ({
 }));
 
 describe('SequenceVisualization G-code simulation integration', () => {
-  it('validates store integration with G-code data', () => {
+  it('validates store integration with G-code data', async () => {
     // Test the store mock integration without rendering the heavy 3D component
-    const { useAppStore } = require('../../store');
+    const storeModule = await import('../../store');
+    const { useAppStore } = storeModule;
     const state = useAppStore((s: any) => s);
     
     expect(state.generatedGCode).toContain('G21');
@@ -134,8 +135,9 @@ describe('SequenceVisualization G-code simulation integration', () => {
     expect(state.visualizationSettings.stockSize).toEqual([25, 25, 10]);
   });
 
-  it('validates machine settings integration', () => {
-    const { useMachineSettings } = require('../../store');
+  it('validates machine settings integration', async () => {
+    const storeModule = await import('../../store');
+    const { useMachineSettings } = storeModule;
     const settings = useMachineSettings();
     
     expect(settings.units).toBe('mm');

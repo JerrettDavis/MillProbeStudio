@@ -190,7 +190,7 @@ describe('useVirtualMillSimulation', () => {
     expect(result.current.totalSteps).toBe(3); // pre-move + probe + post-move
     expect(result.current.steps[0].type).toBe('rapid'); // pre-move
     expect(result.current.steps[1].type).toBe('probe'); // probe
-    expect(result.current.steps[2].type).toBe('linear'); // post-move
+    expect(result.current.steps[2].type).toBe('rapid'); // post-move
   });
 
   it('should provide VirtualMill instance', () => {
