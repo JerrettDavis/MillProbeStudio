@@ -13,17 +13,16 @@ import {
   Zap
 } from 'lucide-react';
 import { useAppStore } from '@/store';
-import useProbeSimulation from '@/hooks/visualization/useProbeSimulation';
-import type { ProbeSequenceSettings, ProbeOperation } from '@/types/machine';
+import { useVirtualMillContext } from './useVirtualMillContext';
 
 interface SimulationControlsProps {
   className?: string;
-  probeSequence?: ProbeSequenceSettings;
 }
 
-export const SimulationControls: React.FC<SimulationControlsProps> = ({ className = '', probeSequence }) => {
+export const SimulationControls: React.FC<SimulationControlsProps> = ({ className = '' }) => {
   const {
     simulationState,
+    probeSequence: storeProbeSequence,
     startSimulation,
     stopSimulation,
     playSimulation,
@@ -32,42 +31,16 @@ export const SimulationControls: React.FC<SimulationControlsProps> = ({ classNam
     setSimulationSpeed,
     setSimulationStep,
     addProbeOperation,
-    probeSequence: storeProbeSequence,
     setProbeSequenceSettings
   } = useAppStore();
 
-  // Always use the probeSequence prop if provided
-  const probeOps = (probeSequence && probeSequence.operations && probeSequence.operations.length > 0)
-    ? probeSequence.operations
-    : (storeProbeSequence && storeProbeSequence.length > 0 ? storeProbeSequence : []);
+  // Get VirtualMill simulation state from context
+  const virtualMillContext = useVirtualMillContext();
 
-  // Local type for parsed probe operation (for simulation)
-  type ParsedProbeOp = ProbeOperation & {
-    type: 'probe';
-    X: number;
-    Y: number;
-    Z: number;
-  };
-
-  // Map probeOps (ProbeOperation[]) to ParsedProbeOp[] if needed
-  let parsedProbeOps: ParsedProbeOp[] = [];
-  const basePos = {
-    X: probeSequence?.initialPosition?.X ?? 0,
-    Y: probeSequence?.initialPosition?.Y ?? 0,
-    Z: probeSequence?.initialPosition?.Z ?? 0
-  };
-  if (probeOps && probeOps.length > 0 && probeOps[0].axis && probeOps[0].direction !== undefined) {
-    parsedProbeOps = probeOps.map((op: ProbeOperation) => ({
-      ...op,
-      type: 'probe',
-      X: basePos.X,
-      Y: basePos.Y,
-      Z: basePos.Z
-    }));
-  }
-
-  const initialPosition = probeSequence?.initialPosition || { X: 0, Y: 0, Z: 0 };
-  const simulation = useProbeSimulation(parsedProbeOps, initialPosition);
+  // Use VirtualMill totalSteps if available, otherwise fallback to probe sequence length
+  const totalSteps = virtualMillContext?.totalSteps ?? storeProbeSequence.length;
+  const isReady = virtualMillContext?.isReady ?? (storeProbeSequence.length > 0);
+  const currentStep = virtualMillContext?.currentStep;
 
   const handlePlayPause = () => {
     if (!simulationState.isActive) {
@@ -93,7 +66,7 @@ export const SimulationControls: React.FC<SimulationControlsProps> = ({ classNam
   };
 
   const handleStepForward = () => {
-    if (simulationState.currentStepIndex < simulation.totalSteps - 1) {
+    if (simulationState.currentStepIndex < totalSteps - 1) {
       setSimulationStep(simulationState.currentStepIndex + 1);
     }
   };
@@ -152,18 +125,18 @@ export const SimulationControls: React.FC<SimulationControlsProps> = ({ classNam
     setProbeSequenceSettings((prev) => ({
       ...prev,
       operations: [
-        { id: `probe-${Date.now()}-Y`, axis: 'Y', direction: -1, distance: 15, feedRate: 300, backoffDistance: 2, wcsOffset: 0, preMoves: [], postMoves: [] },
-        { id: `probe-${Date.now()}-X`, axis: 'X', direction: -1, distance: 12, feedRate: 50, backoffDistance: 2, wcsOffset: 0, preMoves: [], postMoves: [] },
-        { id: `probe-${Date.now()}-Z`, axis: 'Z', direction: -1, distance: 8, feedRate: 30, backoffDistance: 1, wcsOffset: 0, preMoves: [], postMoves: [] }
+        { id: `probe-${Date.now()}-${Math.random().toString(36).substr(2, 9)}-Y`, axis: 'Y', direction: -1, distance: 15, feedRate: 300, backoffDistance: 2, wcsOffset: 0, preMoves: [], postMoves: [] },
+        { id: `probe-${Date.now()}-${Math.random().toString(36).substr(2, 9)}-X`, axis: 'X', direction: -1, distance: 12, feedRate: 50, backoffDistance: 2, wcsOffset: 0, preMoves: [], postMoves: [] },
+        { id: `probe-${Date.now()}-${Math.random().toString(36).substr(2, 9)}-Z`, axis: 'Z', direction: -1, distance: 8, feedRate: 30, backoffDistance: 1, wcsOffset: 0, preMoves: [], postMoves: [] }
       ]
     }));
   };
 
   // Don't render if no probe sequence
-  if (!simulation.isReady) {
+  if (!isReady) {
     if (typeof window !== 'undefined' && (window as Window & { DEBUG_PROBE_SIM?: boolean }).DEBUG_PROBE_SIM) {
        
-      console.log('SimulationControls fallback: simulation.isReady:', simulation.isReady, 'totalSteps:', simulation.totalSteps);
+      console.log('SimulationControls fallback: isReady:', isReady, 'totalSteps:', totalSteps);
     }
     return (
       <Card className={`${className}`}>
@@ -227,7 +200,7 @@ export const SimulationControls: React.FC<SimulationControlsProps> = ({ classNam
             onClick={handleStepForward} 
             size="sm" 
             variant="outline"
-            disabled={simulationState.currentStepIndex >= simulation.totalSteps - 1}
+            disabled={simulationState.currentStepIndex >= totalSteps - 1}
           >
             <SkipForward className="h-4 w-4" />
           </Button>
@@ -236,7 +209,7 @@ export const SimulationControls: React.FC<SimulationControlsProps> = ({ classNam
         {/* Progress Information */}
         <div className="space-y-2">
           <div className="flex items-center justify-between text-xs text-gray-600">
-            <span>Step {simulationState.currentStepIndex + 1} of {simulation.totalSteps}</span>
+            <span>Step {simulationState.currentStepIndex + 1} of {totalSteps}</span>
             <span>Speed: {simulationState.speed.toFixed(1)}x</span>
           </div>
           
@@ -245,7 +218,7 @@ export const SimulationControls: React.FC<SimulationControlsProps> = ({ classNam
             type="range"
             value={simulationState.currentStepIndex}
             onChange={handleStepSliderChange}
-            max={Math.max(0, simulation.totalSteps - 1)}
+            max={Math.max(0, totalSteps - 1)}
             min={0}
             step={1}
             className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
@@ -296,21 +269,24 @@ export const SimulationControls: React.FC<SimulationControlsProps> = ({ classNam
         )}
 
         {/* Current Step Info */}
-        {simulation.currentStep && (
+        {currentStep && simulationState.isActive && (
           <div className="space-y-1">
             <div className="text-xs font-medium">Current Step</div>
             <div className="text-xs bg-blue-50 dark:bg-gray-800 p-2 rounded">
               <div className="flex items-center justify-between">
-                <span className="font-medium capitalize">{simulation.currentStep.type}</span>
+                <span className="font-medium capitalize">{currentStep.type}</span>
                 <Badge variant="outline" className="text-xs">
-                  {simulation.currentStep.axis || 'All Axes'}
+                  {currentStep.operation?.axis || 'All Axes'}
                 </Badge>
               </div>
-              {simulation.currentStep.operation && (
+              {currentStep.operation && (
                 <div className="mt-1 text-gray-600">
-                  Operation: {simulation.currentStep.operation.id}
+                  Operation: {currentStep.operation.id}
                 </div>
               )}
+              <div className="mt-1 text-gray-600">
+                Position: {formatPosition(simulationState.currentPosition)}
+              </div>
             </div>
           </div>
         )}

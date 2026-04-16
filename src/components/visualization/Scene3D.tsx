@@ -9,11 +9,11 @@ import {
   HorizontalStage 
 } from './MachineObjects';
 import { CustomModelStock } from './CustomModelStock';
-import { 
-  CoordinateAxes, 
-  EnhancedAxisLabels, 
-  CoordinateHover, 
-  WorkspaceBoundsVisualization 
+import {
+  CoordinateAxes,
+  EnhancedAxisLabels,
+  CoordinateHover,
+  WorkspaceBoundsVisualization
 } from './CoordinateSystem';
 import { ProbePathVisualization } from './ProbePathVisualization';
 import { SceneLighting, SceneGrid, SceneFloor } from './SceneEnvironment';
@@ -30,11 +30,11 @@ import {
   type CameraPreset
 } from '@/utils/visualization/cameraPresets';
 import { DEFAULT_VISUALIZATION_CONFIG } from '@/config/visualization/visualizationConfig';
-import type { MachineSettings, ProbeSequenceSettings, ProbeOperation } from '@/types/machine';
+import type { MachineSettings, ProbeSequenceSettings } from '@/types/machine';
 import type { Position3D } from '@/utils/visualization/machineGeometry';
-import useProbeSimulation from '@/hooks/visualization/useProbeSimulation';
 import { useAppStore } from '@/store';
 import { ProbeLivePath } from './ProbeLivePath';
+import { useVirtualMillContext } from './useVirtualMillContext';
 
 export interface Scene3DProps {
   machineSettings: MachineSettings;
@@ -168,28 +168,12 @@ export const Scene3D: React.FC<Scene3DProps> = ({
     console.error('Error loading model:', error);
   }, []);
   
-  // Simulation state and logic
+  // Simulation state (read-only for visualization)
   const simulationState = useAppStore(state => state.simulationState);
-  // Local type for parsed probe operation (for simulation)
-  type ParsedProbeOp = ProbeOperation & {
-    type: 'probe';
-    X: number;
-    Y: number;
-    Z: number;
-  };
-  const probeOps = useMemo<ParsedProbeOp[]>(() => {
-    if (!probeSequence?.operations) return [];
-    const basePos = probeSequence.initialPosition || { X: 0, Y: 0, Z: 0 };
-    return probeSequence.operations.map(op => ({
-      ...op,
-      type: 'probe',
-      X: basePos.X,
-      Y: basePos.Y,
-      Z: basePos.Z
-    }));
-  }, [probeSequence]);
-  const initialPosition = probeSequence?.initialPosition || { X: 0, Y: 0, Z: 0 };
-  useProbeSimulation(probeOps, initialPosition); // Only call for side effect, do not assign
+  // Note: useProbeSimulation is now handled by VirtualMillSimulationBridge when Scene3D is wrapped
+
+  // Get VirtualMill context for accessing current step details
+  const virtualMillContext = useVirtualMillContext();
   
   // Extract machine orientation and stage dimensions from machine settings
   const machineOrientation = machineSettings.machineOrientation;
@@ -197,7 +181,7 @@ export const Scene3D: React.FC<Scene3DProps> = ({
 
   // --- Live probe path state ---
   const [livePath, setLivePath] = React.useState<Array<{ X: number; Y: number; Z: number; axis: 'X' | 'Y' | 'Z' }>>([]);
-  // Track probe tip position and axis as simulation runs
+  // Track probe tip position during simulation
   useEffect(() => {
     if (simulationState.isActive && simulationState.isPlaying) {
       setLivePath((prev) => {
@@ -208,21 +192,25 @@ export const Scene3D: React.FC<Scene3DProps> = ({
           initialPosition: simulationState.currentPosition
         } as ProbeSequenceSettings;
         const world = calculateToolPosition(machineSettings, tempProbeSequence, machineOrientation);
-        const axis = probeOps[simulationState.currentStepIndex]?.axis || 'Y';
-        // Only add if position actually changed and axis is not X
-        if ((axis === 'Y' || axis === 'Z') && (!last || last.X !== world.x || last.Y !== world.y || last.Z !== world.z)) {
+
+        // Get actual axis from current step via VirtualMill context
+        const currentStep = virtualMillContext?.currentStep;
+        const axis = (currentStep?.operation?.axis || 'Y') as 'X' | 'Y' | 'Z';
+
+        // Only add if position actually changed
+        if (!last || last.X !== world.x || last.Y !== world.y || last.Z !== world.z) {
+          // Break path on X axis movements (start new segment)
+          if (axis === 'X') {
+            return [];
+          }
           return [...prev, { X: world.x, Y: world.y, Z: world.z, axis }];
-        }
-        // If axis is X, break the path (start a new segment)
-        if (axis === 'X') {
-          return [];
         }
         return prev;
       });
     } else if (!simulationState.isActive) {
       setLivePath([]); // Reset on stop
     }
-  }, [simulationState.isActive, simulationState.isPlaying, simulationState.currentPosition, simulationState.currentStepIndex, probeOps, machineSettings, machineOrientation, probeSequence]);
+  }, [simulationState.isActive, simulationState.isPlaying, simulationState.currentPosition, simulationState.currentStepIndex, virtualMillContext?.currentStep, machineSettings, machineOrientation, probeSequence]);
   
   // Get machine orientation configuration
   const orientationConfig = MACHINE_ORIENTATION_CONFIGS[machineOrientation];
@@ -743,7 +731,7 @@ export const Scene3D: React.FC<Scene3DProps> = ({
         )}
 
         {/* Tool visualization */}
-        <ToolVisualization 
+        <ToolVisualization
           position={[effectiveToolPosition.x, effectiveToolPosition.y, effectiveToolPosition.z]}
           diameter={toolDiameter}
           length={DEFAULT_VISUALIZATION_CONFIG.toolLength}
@@ -754,7 +742,7 @@ export const Scene3D: React.FC<Scene3DProps> = ({
 
         {/* Probe path visualization */}
         {probeSequence && (
-          <ProbePathVisualization 
+          <ProbePathVisualization
             operations={probeSequence.operations}
             initialPosition={probeSequence.initialPosition}
           />

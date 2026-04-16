@@ -1,24 +1,9 @@
 // src/components/visualization/VirtualMillSimulationBridge.tsx
-import React, { useEffect, createContext, useContext } from 'react';
+import React, { useEffect } from 'react';
 import { useVirtualMillSimulation } from '@/hooks/visualization/useVirtualMillSimulation';
 import { useAppStore } from '@/store';
 import type { ProbeSequenceSettings } from '@/types/machine';
-import type { Position3D } from '@/utils/machine/VirtualMill';
-
-// Context to provide VirtualMill simulation data to child components
-interface VirtualMillSimulationContext {
-  contactPoints: Position3D[];
-  hasCustomModel: boolean;
-  clearContactPoints: () => void;
-  isUsingVirtualMill: boolean;
-}
-
-const VirtualMillContext = createContext<VirtualMillSimulationContext | null>(null);
-
-export const useVirtualMillContext = () => {
-  const context = useContext(VirtualMillContext);
-  return context;
-};
+import { VirtualMillContext, useVirtualMillContext, type VirtualMillSimulationContext } from './useVirtualMillContext';
 
 interface VirtualMillSimulationBridgeProps {
   probeSequence?: ProbeSequenceSettings;
@@ -38,12 +23,19 @@ export const VirtualMillSimulationBridge: React.FC<VirtualMillSimulationBridgePr
   // Use VirtualMill simulation
   const virtualMillSim = useVirtualMillSimulation(probeSequence);
   
+  // Get current GCode line index from current step
+  const currentGCodeLineIndex = virtualMillSim.currentStep?.gcodeLineIndex ?? 0;
+
   // Create context value
   const contextValue: VirtualMillSimulationContext = {
     contactPoints: virtualMillSim.contactPoints,
     hasCustomModel: virtualMillSim.hasCustomModel,
     clearContactPoints: virtualMillSim.clearContactPoints,
-    isUsingVirtualMill: true
+    isUsingVirtualMill: true,
+    totalSteps: virtualMillSim.totalSteps,
+    currentStep: virtualMillSim.currentStep,
+    currentGCodeLineIndex,
+    isReady: virtualMillSim.isReady
   };
   
   useEffect(() => {
@@ -76,13 +68,7 @@ export const VirtualMillSimulationBridge: React.FC<VirtualMillSimulationBridgePr
         hasCustomModel: virtualMillSim.hasCustomModel
       });
     }
-  }, [
-    virtualMillSim.isReady, 
-    virtualMillSim.totalSteps, 
-    virtualMillSim.currentStep?.id,
-    virtualMillSim.contactPoints.length,
-    virtualMillSim.hasCustomModel
-  ]); // Only log when these specific values change
+  }, [virtualMillSim]); // Use entire object to avoid missing dependency warnings
 
   return (
     <VirtualMillContext.Provider value={contextValue}>

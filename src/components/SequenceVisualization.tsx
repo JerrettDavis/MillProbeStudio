@@ -18,9 +18,8 @@ import ProbeControls from './ProbeControls';
 import MachineSettingsForm from './MachineSettings';
 import { SimulationControls } from './visualization/SimulationControls';
 import GCodeReadout from './visualization/GCodeReadout';
-import useProbeSimulation from '@/hooks/visualization/useProbeSimulation';
-import { parseGCode } from '@/utils/gcodeParser';
-// Use types from src/types/machine for ProbeOperation and ProbeSequenceSettings
+import { useVirtualMillContext } from './visualization/useVirtualMillContext';
+// Use types from src/types/machine
 import type { ProbeOperation, ProbeSequenceSettings, MachineSettings, AxisConfig } from '@/types/machine';
 
 interface SequenceVisualizationProps {
@@ -61,58 +60,17 @@ const SequenceVisualization: React.FC<SequenceVisualizationProps> = ({
     updateModelFile
   } = visualizationControls;
 
-  // Get G-code and simulation state from store
+  // Get G-code for display in readout
   const generatedGCode = useAppStore(state => state.generatedGCode) || '';
-  // Parse G-code into parsedGCodeLines for simulation
-  const parsedGCodeLines = useMemo(() => {
-    const result = parseGCode(generatedGCode);
-    // If your parser does not return a lines array, fallback to probeSequence or map lines
-    if (Array.isArray(result.probeSequence) && result.probeSequence.length > 0) {
-      // Map probeSequence to ParsedGCodeLine[] if needed
-      return result.probeSequence.map((probe: ProbeOperation) => ({
-        type: 'probe',
-        axis: probe.axis,
-        direction: probe.direction,
-        distance: probe.distance,
-        feedRate: probe.feedRate,
-        backoffDistance: probe.backoffDistance,
-        wcsOffset: probe.wcsOffset,
-        id: probe.id,
-        preMoves: probe.preMoves,
-        postMoves: probe.postMoves,
-      }));
-    }
-    // Fallback: use probeSequenceSettings.operations if available
-    if (probeSequenceSettings && Array.isArray(probeSequenceSettings.operations) && probeSequenceSettings.operations.length > 0) {
-      return probeSequenceSettings.operations.map((probe: ProbeOperation) => ({
-        id: probe.id,
-        type: 'probe',
-        axis: probe.axis,
-        direction: probe.direction,
-        distance: probe.distance,
-        feedRate: probe.feedRate,
-        backoffDistance: probe.backoffDistance,
-        wcsOffset: probe.wcsOffset,
-        preMoves: probe.preMoves,
-        postMoves: probe.postMoves,
-        // Add any other fields needed by the simulation engine
-      }));
-    }
-    // Fallback: map each line to a minimal ParsedGCodeLine
-    return generatedGCode.split(/\r?\n/).map(line => ({ type: 'other', raw: line }));
-  }, [generatedGCode, probeSequenceSettings]);
-
-  // Ensure gcodeLines is defined before use
   const gcodeLines = useMemo(() => generatedGCode.split(/\r?\n/), [generatedGCode]);
 
-  // Get initial position from settings or parser (fallback to 0,0,0)
-  const initialPosition = probeSequenceSettings?.initialPosition || { X: 0, Y: 0, Z: 0 };
+  // Get VirtualMill context (provides synchronized simulation state)
+  const virtualMillContext = useVirtualMillContext();
 
-  // Use the new simulation engine
-  const simulation = useProbeSimulation(parsedGCodeLines, initialPosition);
-  // Always get currentStepIndex from store, then let simulation override if available
+  // Get current GCode line from VirtualMill context (synchronized with simulation)
+  // Fallback to store's currentStepIndex if VirtualMill context not available
   const storeCurrentStepIndex = useAppStore(state => state.simulationState.currentStepIndex);
-  const currentLine = simulation?.currentStepIndex ?? storeCurrentStepIndex;
+  const currentLine = virtualMillContext?.currentGCodeLineIndex ?? storeCurrentStepIndex;
 
   return (
     <div className="flex flex-col h-[calc(100vh-130px)]">
@@ -143,7 +101,7 @@ const SequenceVisualization: React.FC<SequenceVisualizationProps> = ({
 
             {/* Simulation Controls - Top right corner */}
             <div className="absolute bottom-8 right-6 z-10 max-w-80">
-              <SimulationControls probeSequence={probeSequenceSettings} />
+              <SimulationControls />
             </div>
 
             {/* Floating Control Buttons - Bottom of view */}
