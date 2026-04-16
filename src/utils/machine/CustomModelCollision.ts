@@ -205,47 +205,60 @@ export class CustomModelCollision {
     modelInfo: CustomModelInfo
   ): boolean {
     try {
-      // First, check if point is within the bounding box
-      const bbox = this.getModelBoundingBox(modelInfo);
-      if (point.X < bbox.min.X || point.X > bbox.max.X ||
-          point.Y < bbox.min.Y || point.Y > bbox.max.Y ||
-          point.Z < bbox.min.Z || point.Z > bbox.max.Z) {
+      // Create a mesh for intersection testing (transforms geometry)
+      const mesh = this.createMeshForIntersection(modelInfo);
+
+      // Get world-space bounding box directly from transformed geometry
+      mesh.geometry.computeBoundingBox();
+      const worldBbox = mesh.geometry.boundingBox!;
+
+      // Quick AABB rejection test using correctly-transformed bbox
+      if (point.X < worldBbox.min.x || point.X > worldBbox.max.x ||
+          point.Y < worldBbox.min.y || point.Y > worldBbox.max.y ||
+          point.Z < worldBbox.min.z || point.Z > worldBbox.max.z) {
+        mesh.geometry.dispose();
         return false;
       }
 
-      // Create a mesh for intersection testing
-      const mesh = this.createMeshForIntersection(modelInfo);
-      
-      // Try multiple ray directions to avoid edge cases
+      // For convex meshes, being inside the AABB means being inside the mesh
+      // For concave meshes, use ray casting from outside toward the point
+      // The approach: cast a ray from far away toward the point. If the ray
+      // hits the mesh BEFORE reaching the point, the point is inside.
       const directions = [
         new THREE.Vector3(1, 0, 0),
-        new THREE.Vector3(0, 1, 0), 
+        new THREE.Vector3(0, 1, 0),
         new THREE.Vector3(0, 0, 1),
-        new THREE.Vector3(1, 1, 0).normalize(),
-        new THREE.Vector3(1, 0, 1).normalize()
+        new THREE.Vector3(-1, 0, 0),
+        new THREE.Vector3(0, -1, 0),
+        new THREE.Vector3(0, 0, -1)
       ];
 
-      // Test each direction and use majority vote
+      const pointVec = new THREE.Vector3(point.X, point.Y, point.Z);
       let insideCount = 0;
-      const rayOrigin = new THREE.Vector3(point.X, point.Y, point.Z);
-      
+
       for (const direction of directions) {
-        const raycaster = new THREE.Raycaster(rayOrigin, direction);
+        // Start ray from far outside the bounding box in the opposite direction
+        const farDistance = 1000;
+        const rayOrigin = pointVec.clone().add(direction.clone().multiplyScalar(-farDistance));
+
+        const raycaster = new THREE.Raycaster(rayOrigin, direction.clone().normalize());
         const intersections = raycaster.intersectObject(mesh);
-        
-        // Count intersections in the positive direction only
-        const forwardIntersections = intersections.filter(intersection => intersection.distance > 0);
-        
-        if (forwardIntersections.length % 2 === 1) {
-          insideCount++;
+
+        if (intersections.length > 0) {
+          // If intersection is closer than the point, point is inside
+          const distToIntersection = intersections[0].distance;
+          const distToPoint = farDistance;
+
+          if (distToIntersection < distToPoint - 0.001) {
+            insideCount++;
+          }
         }
       }
-      
+
       mesh.geometry.dispose();
-      
-      // Return true if majority of rays indicate inside
-      return insideCount > directions.length / 2;
-      
+
+      // If at least 4 out of 6 directions confirm inside, it's inside
+      return insideCount >= 4;
     } catch (error) {
       console.error('Error in isPointInside:', error);
       return false;
