@@ -9,11 +9,11 @@ import {
   HorizontalStage 
 } from './MachineObjects';
 import { CustomModelStock } from './CustomModelStock';
-import { 
-  CoordinateAxes, 
-  EnhancedAxisLabels, 
-  CoordinateHover, 
-  WorkspaceBoundsVisualization 
+import {
+  CoordinateAxes,
+  EnhancedAxisLabels,
+  CoordinateHover,
+  WorkspaceBoundsVisualization
 } from './CoordinateSystem';
 import { ProbePathVisualization } from './ProbePathVisualization';
 import { SceneLighting, SceneGrid, SceneFloor } from './SceneEnvironment';
@@ -22,7 +22,7 @@ import { useSceneInteraction } from './useSceneInteraction';
 import { MoveGizmo, RotateGizmo } from './gizmos';
 import type { SceneInteractionTool, SceneObject } from './SceneToolbar';
 import { 
-  calculateStockWorldPosition,
+  calculateToolPosition,
   type MachineGeometry 
 } from '@/utils/visualization/machineGeometry';
 import { 
@@ -32,6 +32,9 @@ import {
 import { DEFAULT_VISUALIZATION_CONFIG } from '@/config/visualization/visualizationConfig';
 import type { MachineSettings, ProbeSequenceSettings } from '@/types/machine';
 import type { Position3D } from '@/utils/visualization/machineGeometry';
+import { useAppStore } from '@/store';
+import { ProbeLivePath } from './ProbeLivePath';
+import { useVirtualMillContext } from './useVirtualMillContext';
 
 export interface Scene3DProps {
   machineSettings: MachineSettings;
@@ -165,12 +168,72 @@ export const Scene3D: React.FC<Scene3DProps> = ({
     console.error('Error loading model:', error);
   }, []);
   
+  // Simulation state (read-only for visualization)
+  const simulationState = useAppStore(state => state.simulationState);
+  // Note: useProbeSimulation is now handled by VirtualMillSimulationBridge when Scene3D is wrapped
+
+  // Get VirtualMill context for accessing current step details
+  const virtualMillContext = useVirtualMillContext();
+  
   // Extract machine orientation and stage dimensions from machine settings
   const machineOrientation = machineSettings.machineOrientation;
   const stageDimensions = machineSettings.stageDimensions;
+
+  // --- Live probe path state ---
+  const [livePath, setLivePath] = React.useState<Array<{ X: number; Y: number; Z: number; axis: 'X' | 'Y' | 'Z' }>>([]);
+  // Track probe tip position during simulation
+  useEffect(() => {
+    if (simulationState.isActive && simulationState.isPlaying) {
+      setLivePath((prev) => {
+        const last = prev[prev.length - 1];
+        // Transform simulation position to world coordinates for the probe tip
+        const tempProbeSequence: ProbeSequenceSettings = {
+          ...probeSequence,
+          initialPosition: simulationState.currentPosition
+        } as ProbeSequenceSettings;
+        const world = calculateToolPosition(machineSettings, tempProbeSequence, machineOrientation);
+
+        // Get actual axis from current step via VirtualMill context
+        const currentStep = virtualMillContext?.currentStep;
+        const axis = (currentStep?.operation?.axis || 'Y') as 'X' | 'Y' | 'Z';
+
+        // Only add if position actually changed
+        if (!last || last.X !== world.x || last.Y !== world.y || last.Z !== world.z) {
+          // Break path on X axis movements (start new segment)
+          if (axis === 'X') {
+            return [];
+          }
+          return [...prev, { X: world.x, Y: world.y, Z: world.z, axis }];
+        }
+        return prev;
+      });
+    } else if (!simulationState.isActive) {
+      setLivePath([]); // Reset on stop
+    }
+  }, [simulationState.isActive, simulationState.isPlaying, simulationState.currentPosition, simulationState.currentStepIndex, virtualMillContext?.currentStep, machineSettings, machineOrientation, probeSequence]);
   
   // Get machine orientation configuration
   const orientationConfig = MACHINE_ORIENTATION_CONFIGS[machineOrientation];
+  
+  // Tool properties
+  const toolDiameter = probeSequence?.endmillSize.sizeInMM || 6;
+  
+  // Calculate effective tool position (simulation overrides normal position when active)
+  const effectiveToolPosition = useMemo(() => {
+    if (simulationState.isActive) {
+      // Create a temporary probe sequence settings with the current simulation position
+      const tempProbeSequence: ProbeSequenceSettings = {
+        ...probeSequence,
+        initialPosition: simulationState.currentPosition
+      } as ProbeSequenceSettings;
+      
+      // Use the same coordinate transformation logic as the normal probe position
+      return calculateToolPosition(machineSettings, tempProbeSequence, machineOrientation);
+    } else {
+      // Use geometry-calculated position when simulation is not active
+      return geometry.toolPosition;
+    }
+  }, [simulationState.isActive, simulationState.currentPosition, geometry.toolPosition, machineSettings, probeSequence, machineOrientation]);
   
   // Calculate camera target based on pivot mode
   const cameraTarget: Position3D = useMemo(() => {
@@ -179,27 +242,65 @@ export const Scene3D: React.FC<Scene3DProps> = ({
         return { x: 0, y: 0, z: 0 };
       case 'tool':
       default:
-        return geometry.toolPosition;
+        return effectiveToolPosition;
     }
-  }, [geometry.toolPosition, pivotMode]);
+  }, [effectiveToolPosition, pivotMode]);
 
-  // Tool properties
-  const toolDiameter = probeSequence?.endmillSize.sizeInMM || 6;
+  // Use local accumulated rotation during drag, store rotation otherwise
+  const effectiveStockRotation = useMemo((): [number, number, number] => {
+    return localRotationState.isActive 
+      ? localRotationState.accumulatedRotation 
+      : stockRotation;
+  }, [localRotationState.isActive, localRotationState.accumulatedRotation, stockRotation]);
 
-  // Calculate stock world position for display
-  const stockWorldPosition = useMemo(() => {
+  // Calculate stock world position for display (with virtual X grounding for horizontal)
+  const stockWorldPosition = useMemo((): [number, number, number] => {
     if (machineOrientation === 'horizontal') {
-      const worldPos = calculateStockWorldPosition(
-        geometry.stagePosition,
-        stockSize,
-        stockPosition,
-        stageDimensions
-      );
-      return [worldPos.x, worldPos.y, worldPos.z] as [number, number, number];
+      // 1. Compute the world position as usual (user offset)
+      const stage = geometry.stagePosition;
+      const dims = stageDimensions;
+      const stageXPlusFace = stage.x + dims[0] / 2;
+      const baseX = stageXPlusFace + stockSize[0] / 2 + stockPosition[0];
+      const baseY = stage.y + stockPosition[1];
+      const stageTop = stage.z + dims[2] / 2;
+      const baseZ = stageTop + stockSize[2] / 2 + stockPosition[2];
+      // 2. Compute the minimum X of the rotated box in world space
+      const corners = [
+        [-stockSize[0]/2, -stockSize[1]/2, -stockSize[2]/2],
+        [-stockSize[0]/2, -stockSize[1]/2,  stockSize[2]/2],
+        [-stockSize[0]/2,  stockSize[1]/2, -stockSize[2]/2],
+        [-stockSize[0]/2,  stockSize[1]/2,  stockSize[2]/2],
+        [ stockSize[0]/2, -stockSize[1]/2, -stockSize[2]/2],
+        [ stockSize[0]/2, -stockSize[1]/2,  stockSize[2]/2],
+        [ stockSize[0]/2,  stockSize[1]/2, -stockSize[2]/2],
+        [ stockSize[0]/2,  stockSize[1]/2,  stockSize[2]/2],
+      ];
+      const euler = new THREE.Euler(effectiveStockRotation[0], effectiveStockRotation[1], effectiveStockRotation[2], 'XYZ');
+      const worldXs = corners.map(([x, y, z]) => {
+        const v = new THREE.Vector3(x, y, z);
+        v.applyEuler(euler);
+        v.x += baseX;
+        v.y += baseY;
+        v.z += baseZ;
+        return v.x;
+      });
+      const minX = Math.min(...worldXs);
+      // 3. Apply a virtual offset so the closest face is flush with the stage X+ face (X=stageXPlusFace)
+      const virtualOffset = stageXPlusFace - minX;
+      return [baseX + virtualOffset, baseY, baseZ];
     } else {
-      return stockPosition;
+      // For vertical, use absolute
+      return [stockPosition[0], stockPosition[1], stockPosition[2]];
     }
-  }, [machineOrientation, geometry.stagePosition, stockSize, stockPosition, stageDimensions]);
+  }, [machineOrientation, geometry.stagePosition, stockSize, stockPosition, stageDimensions, effectiveStockRotation]);
+
+  // NOTE: The stock grounding logic (ensuring the closest point is flush with the stage at X=0)
+  // is handled upstream (typically in StockControls.tsx or a related utility). This component
+  // expects that the provided stockPosition is already grounded correctly for any rotation.
+  // If you need to verify grounding at runtime, add a debug log here:
+  // if (process.env.NODE_ENV === 'development' && stockWorldPosition[0] !== 0) {
+  //   console.warn('[Scene3D] Stock is not flush with stage (X != 0):', stockWorldPosition);
+  // }
 
   // Gizmo interaction handlers
   const handleGizmoMove = useCallback((delta: THREE.Vector3, axis?: 'x' | 'y' | 'z') => {
@@ -319,13 +420,6 @@ export const Scene3D: React.FC<Scene3DProps> = ({
     localRotationState.isActive,
     onStockRotationChange
   ]);
-
-  // Use local accumulated rotation during drag, store rotation otherwise
-  const effectiveStockRotation = useMemo((): [number, number, number] => {
-    return localRotationState.isActive 
-      ? localRotationState.accumulatedRotation 
-      : stockRotation;
-  }, [localRotationState.isActive, localRotationState.accumulatedRotation, stockRotation]);
 
   // Cleanup local rotation state if component unmounts during drag
   React.useEffect(() => {
@@ -590,10 +684,19 @@ export const Scene3D: React.FC<Scene3DProps> = ({
         />
 
         {/* Stock */}
+        {/* --- Ground Stock logic is handled upstream ---
+        The logic that ensures the closest X point of the stock (after rotation) is flush with the stage (X=0)
+        is implemented in StockControls or upstream logic, not here. This applies to both box and custom STL stocks.
+        If you need to debug or verify grounding, check the upstream logic and logs.
+        
+        Example debug (uncomment for development):
+        console.debug('[Scene3D] Stock world position (should be grounded):', stockWorldPosition, 'Rotation:', effectiveStockRotation);
+        */}
         {modelFile ? (
           <CustomModelStock 
             key={modelFile.name + modelFile.size + modelFile.lastModified}
-            position={stockWorldPosition} 
+            // Calculate the world position so that after rotation, the minimum X of the stock aligns with the stage X+ face
+            position={stockWorldPosition}
             size={stockSize}
             rotation={effectiveStockRotation}
             modelFile={modelFile}
@@ -628,8 +731,8 @@ export const Scene3D: React.FC<Scene3DProps> = ({
         )}
 
         {/* Tool visualization */}
-        <ToolVisualization 
-          position={[geometry.toolPosition.x, geometry.toolPosition.y, geometry.toolPosition.z]}
+        <ToolVisualization
+          position={[effectiveToolPosition.x, effectiveToolPosition.y, effectiveToolPosition.z]}
           diameter={toolDiameter}
           length={DEFAULT_VISUALIZATION_CONFIG.toolLength}
           onHover={showCoordinateHover && !isGizmoDragging ? setHoverPosition : undefined}
@@ -639,7 +742,7 @@ export const Scene3D: React.FC<Scene3DProps> = ({
 
         {/* Probe path visualization */}
         {probeSequence && (
-          <ProbePathVisualization 
+          <ProbePathVisualization
             operations={probeSequence.operations}
             initialPosition={probeSequence.initialPosition}
           />
@@ -647,6 +750,35 @@ export const Scene3D: React.FC<Scene3DProps> = ({
 
         {/* Machine workspace bounds visualization */}
         <WorkspaceBoundsVisualization workspaceBounds={geometry.workspaceBounds} />
+
+        {/* Contact points visualization during simulation */}
+        {simulationState.isActive && simulationState.contactPoints.map((contactPoint) => {
+          // Transform contact point coordinates using the same logic as tool position
+          const tempProbeSequence: ProbeSequenceSettings = {
+            ...probeSequence,
+            initialPosition: contactPoint.position
+          } as ProbeSequenceSettings;
+          
+          const contactWorldPosition = calculateToolPosition(machineSettings, tempProbeSequence, machineOrientation);
+          
+          return (
+            <group key={contactPoint.id}>
+              {/* Contact point sphere */}
+              <mesh position={[contactWorldPosition.x, contactWorldPosition.y, contactWorldPosition.z]}>
+                <sphereGeometry args={[0.8, 12, 8]} />
+                <meshBasicMaterial color="#ff4444" />
+              </mesh>
+              {/* Contact point glow effect */}
+              <mesh position={[contactWorldPosition.x, contactWorldPosition.y, contactWorldPosition.z]}>
+                <sphereGeometry args={[1.2, 8, 6]} />
+                <meshBasicMaterial color="#ff4444" transparent opacity={0.3} />
+              </mesh>
+            </group>
+          );
+        })}
+
+        {/* Live probe path visualization */}
+        {livePath.length > 1 && <ProbeLivePath positions={livePath} />}
 
         {/* Interactive Gizmos */}
         {sceneInteraction.interactionState.selectedObject !== 'none' && (

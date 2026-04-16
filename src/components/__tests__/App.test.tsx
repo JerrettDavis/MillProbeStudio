@@ -9,6 +9,91 @@ vi.mock('@/utils/gcodeGenerator', () => ({
   generateGCode: vi.fn(() => 'G0 X0 Y0 Z0\nM30')
 }));
 
+// Mock the store module
+vi.mock('@/store', () => {
+  const mockState = {
+    machineSettings: {
+      units: 'mm',
+      axes: {
+        X: {
+          positiveDirection: 'Down',
+          negativeDirection: 'Up',
+          polarity: 1,
+          min: -86,
+          max: -0.5
+        },
+        Y: {
+          positiveDirection: 'Right',
+          negativeDirection: 'Left',
+          polarity: 1,
+          min: -0.5,
+          max: -241.50
+        },
+        Z: {
+          positiveDirection: 'In',
+          negativeDirection: 'Out',
+          polarity: -1,
+          min: -0.5,
+          max: -78.50
+        }
+      },
+      machineOrientation: 'horizontal',
+      stageDimensions: [12.7, 304.8, 63.5]
+    },
+    probeSequence: [],
+    probeSequenceSettings: {
+      initialPosition: { X: 0, Y: 0, Z: 0 },
+      dwellsBeforeProbe: 15,
+      spindleSpeed: 5000,
+      units: 'mm' as const
+    },
+    generatedGCode: '',
+    visualizationSettings: {},
+    cameraSettings: {},
+    importCounter: 0
+  };
+
+  return {
+    useAppStore: vi.fn((selector) => {
+      if (selector) {
+        return selector(mockState);
+      }
+      return mockState;
+    }),
+    useMachineSettings: () => mockState.machineSettings,
+    useProbeSequence: () => mockState.probeSequence,
+    useProbeSequenceSettings: () => mockState.probeSequenceSettings,
+    useGeneratedGCode: () => mockState.generatedGCode,
+    useVisualizationWithStore: () => ({
+      machineSettings: mockState.machineSettings,
+      probeSequence: mockState.probeSequence,
+      probeSequenceSettings: mockState.probeSequenceSettings,
+      visualizationSettings: mockState.visualizationSettings,
+      setMachineSettings: vi.fn(),
+      updateAxisConfig: vi.fn(),
+      setVisualizationSettings: vi.fn()
+    }),
+    useMachineSettingsActions: () => ({
+      setMachineSettings: vi.fn(),
+      updateAxisConfig: vi.fn()
+    }),
+    useProbeSequenceActions: () => ({
+      setProbeSequence: vi.fn(),
+      addProbeOperation: vi.fn(),
+      updateProbeOperation: vi.fn(),
+      removeProbeOperation: vi.fn(),
+      setProbeSequenceSettings: vi.fn()
+    }),
+    useGCodeActions: () => ({
+      setGeneratedGCode: vi.fn(),
+      generateGCode: vi.fn()
+    }),
+    useImportActions: () => ({
+      importFromData: vi.fn()
+    })
+  }
+});
+
 // Simple mock for ProbeSequence
 vi.mock('../ProbeSequence', () => ({
   default: ({ onProbeSequenceChange, onProbeSequenceSettingsChange }: { onProbeSequenceChange?: (sequence: any) => void, onProbeSequenceSettingsChange?: (settings: any) => void }) => {
@@ -57,11 +142,14 @@ vi.mock('../GCodeImport', () => ({
 
 // Simple mock for SequenceVisualization
 vi.mock('../SequenceVisualization', () => ({
-  default: ({ probeSequence }: { probeSequence?: any[] }) => (
-    <div data-testid="sequence-visualization">
-      Visualization for {probeSequence?.length ? `${probeSequence.length} operations` : 'no'} sequence
-    </div>
-  )
+  default: ({ probeSequenceSettings }: { probeSequenceSettings?: any }) => {
+    return (
+      <div data-testid="sequence-visualization">
+        Visualization for sequence
+        {probeSequenceSettings && <span data-testid="sequence-settings">with settings</span>}
+      </div>
+    );
+  }
 }));
 
 // Simple mock for GCodeOutput
@@ -87,6 +175,9 @@ vi.mock('../theme-provider', () => ({
 describe('App Component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Reset URL hash to prevent test pollution between runs
+    // App.tsx reads window.location.hash to determine initial tab
+    window.location.hash = '';
   });
   it('renders all main tabs', () => {
     render(<App />);
@@ -210,7 +301,7 @@ describe('App Component', () => {
     await user.click(vizTab);
     
     await waitFor(() => {
-      expect(screen.getByText(/Visualization for.*1 operations.*sequence/)).toBeInTheDocument();
+      expect(screen.getByText(/Visualization for sequence/)).toBeInTheDocument();
     });
   });
   it('handles state updates correctly', async () => {

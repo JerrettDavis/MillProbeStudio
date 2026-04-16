@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import ProbeSequenceEditor from '@/components/ProbeSequence';
 import GCodeImport from '@/components/GCodeImport';
 import SequenceVisualization from '@/components/SequenceVisualization';
@@ -36,6 +36,14 @@ const App = () => {
   const handleGenerateGCode = useCallback(() => {
     const gcode = generateGCode(probeSequence, probeSequenceSettings);
     setGeneratedGCode(gcode);
+  }, [probeSequence, probeSequenceSettings, setGeneratedGCode]);
+
+  // Automatically update G-code when sequence/settings change
+  useEffect(() => {
+    if (probeSequence && probeSequenceSettings) {
+      const gcode = generateGCode(probeSequence, probeSequenceSettings);
+      setGeneratedGCode(gcode);
+    }
   }, [probeSequence, probeSequenceSettings, setGeneratedGCode]);
 
   // Memoize callback functions to prevent infinite loops in ProbeSequenceEditor
@@ -94,7 +102,6 @@ const App = () => {
 
             <TabsContent value="visualize" className="space-y-6">
               <SequenceVisualization
-                probeSequence={probeSequence}
                 machineSettings={machineSettings}
                 probeSequenceSettings={probeSequenceSettings}
                 setMachineSettings={setMachineSettings}

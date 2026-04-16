@@ -69,6 +69,23 @@ interface AppState {
   generatedGCode: string;
   importCounter: number;
   
+  // Simulation state
+  simulationState: {
+    isActive: boolean; // Whether simulation mode is active
+    isPlaying: boolean; // Whether simulation is currently playing
+    currentStepIndex: number; // Current step in the simulation
+    currentPosition: { X: number; Y: number; Z: number }; // Current animated tool position
+    contactPoints: Array<{
+      id: string;
+      position: { X: number; Y: number; Z: number };
+      timestamp: number;
+      probeOperationId: string;
+      axis: 'X' | 'Y' | 'Z';
+    }>; // Contact points detected during simulation
+    speed: number; // Simulation speed multiplier (0.1 to 3.0)
+    totalSteps: number; // Total number of simulation steps
+  };
+  
   // Visualization state
   visualizationSettings: {
     stockSize: [number, number, number];
@@ -126,6 +143,18 @@ interface AppActions {
   setCameraPivotMode: (mode: 'tool' | 'origin') => void;
   clearCameraPreset: () => void; // Clear preset when user manually moves camera
   
+  // Simulation actions
+  startSimulation: () => void;
+  stopSimulation: () => void;
+  playSimulation: () => void;
+  pauseSimulation: () => void;
+  resetSimulation: () => void;
+  setSimulationStep: (stepIndex: number) => void;
+  setSimulationPosition: (position: { X: number; Y: number; Z: number }) => void;
+  setSimulationSpeed: (speed: number) => void;
+  addContactPoint: (point: { position: { X: number; Y: number; Z: number }; probeOperationId: string; axis: 'X' | 'Y' | 'Z' }) => void;
+  clearContactPoints: () => void;
+  
   // Reset actions
   resetToDefaults: () => void;
   resetMachineSettings: () => void;
@@ -142,6 +171,15 @@ export const useAppStore = create<AppState & AppActions>()(
       probeSequenceSettings: defaultProbeSequenceSettings,
       generatedGCode: '',
       importCounter: 0,
+      simulationState: {
+        isActive: false,
+        isPlaying: false,
+        currentStepIndex: 0,
+        currentPosition: defaultProbeSequenceSettings.initialPosition,
+        contactPoints: [],
+        speed: 1.0,
+        totalSteps: 0
+      },
       visualizationSettings: {
         stockSize: [25, 25, 10],
         stockPosition: [0, 0, 0],
@@ -335,6 +373,81 @@ export const useAppStore = create<AppState & AppActions>()(
         state.cameraSettings.isManuallyMoved = true;
       }),
       
+      // Simulation actions
+      startSimulation: () => set((state) => {
+        state.simulationState.isActive = true;
+        state.simulationState.isPlaying = false;
+        state.simulationState.currentStepIndex = 0;
+        state.simulationState.currentPosition = { ...state.probeSequenceSettings.initialPosition };
+        state.simulationState.contactPoints = [];
+        state.simulationState.speed = 1.0;
+        state.simulationState.totalSteps = state.probeSequence.length;
+      }),
+      
+      stopSimulation: () => set((state) => {
+        state.simulationState.isActive = false;
+        state.simulationState.isPlaying = false;
+        state.simulationState.currentStepIndex = 0;
+        state.simulationState.currentPosition = { ...state.probeSequenceSettings.initialPosition };
+        state.simulationState.contactPoints = [];
+      }),
+      
+      playSimulation: () => set((state) => {
+        if (state.simulationState.isActive) {
+          state.simulationState.isPlaying = true;
+        }
+      }),
+      
+      pauseSimulation: () => set((state) => {
+        state.simulationState.isPlaying = false;
+      }),
+      
+      resetSimulation: () => set((state) => {
+        state.simulationState.currentStepIndex = 0;
+        state.simulationState.currentPosition = { ...state.probeSequenceSettings.initialPosition };
+        state.simulationState.contactPoints = [];
+        state.simulationState.speed = 1.0;
+      }),
+      
+      setSimulationStep: (stepIndex) => set((state) => {
+        if (stepIndex >= 0 && stepIndex < state.simulationState.totalSteps) {
+          state.simulationState.currentStepIndex = stepIndex;
+          // Update position based on the step
+          const currentStep = state.probeSequence[stepIndex];
+          if (currentStep) {
+            state.simulationState.currentPosition = {
+              X: currentStep.distance * (currentStep.axis === 'X' ? 1 : 0),
+              Y: currentStep.distance * (currentStep.axis === 'Y' ? 1 : 0),
+              Z: currentStep.distance * (currentStep.axis === 'Z' ? 1 : 0),
+            };
+          }
+        }
+      }),
+      
+      setSimulationPosition: (position) => set((state) => {
+        state.simulationState.currentPosition = position;
+      }),
+      
+      setSimulationSpeed: (speed) => set((state) => {
+        if (speed >= 0.1 && speed <= 3.0) {
+          state.simulationState.speed = speed;
+        }
+      }),
+      
+      addContactPoint: (point) => set((state) => {
+        state.simulationState.contactPoints.push({
+          id: `contact-${Date.now()}`,
+          position: point.position,
+          timestamp: Date.now(),
+          probeOperationId: point.probeOperationId,
+          axis: point.axis,
+        });
+      }),
+      
+      clearContactPoints: () => set((state) => {
+        state.simulationState.contactPoints = [];
+      }),
+      
       // Reset actions
       resetToDefaults: () => set((state) => {
         state.machineSettings = defaultMachineSettings;
@@ -342,6 +455,15 @@ export const useAppStore = create<AppState & AppActions>()(
         state.probeSequenceSettings = defaultProbeSequenceSettings;
         state.generatedGCode = '';
         state.importCounter = 0;
+        state.simulationState = {
+          isActive: false,
+          isPlaying: false,
+          currentStepIndex: 0,
+          currentPosition: { X: 0, Y: 0, Z: 0 },
+          contactPoints: [],
+          speed: 1,
+          totalSteps: 0
+        };
         state.visualizationSettings = {
           stockSize: [25, 25, 10],
           stockPosition: [0, 0, 0],

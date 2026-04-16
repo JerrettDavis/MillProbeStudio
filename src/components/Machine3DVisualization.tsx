@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { ResizablePanelGroup, ResizablePanel } from '@/components/ui/resizable';
-import { Scene3D } from './visualization/Scene3D';
+import { VirtualMillScene3D } from './visualization/VirtualMillScene3D';
 import { CameraPresets, CameraCoordinateDisplay } from './visualization/CameraSystem';
 import { SceneToolbar, type SceneInteractionTool, type SceneObject } from './visualization/SceneToolbar';
 import { useMachineGeometry } from '@/hooks/visualization/useMachineGeometry';
@@ -168,7 +168,7 @@ const Machine3DVisualization: React.FC<Machine3DVisualizationProps> = ({
             }}
             style={{ background: '#1a1a1a', width: '100%', height: '100%' }}
           >
-            <Scene3D 
+            <VirtualMillScene3D 
               machineSettings={machineSettings} 
               probeSequence={probeSequence}
               geometry={geometry}
