@@ -175,6 +175,9 @@ vi.mock('../theme-provider', () => ({
 describe('App Component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Reset URL hash to prevent test pollution between runs
+    // App.tsx reads window.location.hash to determine initial tab
+    window.location.hash = '';
   });
   it('renders all main tabs', () => {
     render(<App />);
