@@ -3,7 +3,7 @@ import React, { useEffect } from 'react';
 import { useVirtualMillSimulation } from '@/hooks/visualization/useVirtualMillSimulation';
 import { useAppStore } from '@/store';
 import type { ProbeSequenceSettings } from '@/types/machine';
-import { VirtualMillContext, useVirtualMillContext, type VirtualMillSimulationContext } from './useVirtualMillContext';
+import { VirtualMillContext, type VirtualMillSimulationContext } from './useVirtualMillContext';
 
 interface VirtualMillSimulationBridgeProps {
   probeSequence?: ProbeSequenceSettings;
