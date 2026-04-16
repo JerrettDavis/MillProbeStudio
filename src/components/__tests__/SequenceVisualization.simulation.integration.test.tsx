@@ -141,27 +141,7 @@ describe('SequenceVisualization simulation integration', () => {
 describe('SimulationControls direct mount', () => {
   it('renders play button when given a valid probeSequence', () => {
     (window as any).DEBUG_PROBE_SIM = true;
-    const probeSequence = {
-      initialPosition: { X: 0, Y: 0, Z: 0 },
-      operations: [
-        {
-          id: 'probe-1',
-          axis: 'Y' as const,
-          direction: -1 as const,
-          distance: 10,
-          feedRate: 100,
-          backoffDistance: 2,
-          wcsOffset: 0,
-          preMoves: [],
-          postMoves: []
-        }
-      ],
-      endmillSize: { input: '1/8', unit: 'fraction' as const, sizeInMM: 3.175 },
-      units: 'mm' as const,
-      dwellsBeforeProbe: 0,
-      spindleSpeed: 0
-    };
-    render(<SimulationControls probeSequence={probeSequence} />);
+    render(<SimulationControls />);
     expect(screen.getByTestId('probe-sim-play')).toBeInTheDocument();
     delete (window as any).DEBUG_PROBE_SIM;
   });
