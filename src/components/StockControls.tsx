@@ -47,9 +47,7 @@ const StockControls: React.FC<StockControlsProps> = ({
 
     if (machineOrientation === 'horizontal') {
       // For horizontal machines: [X offset from stage, Y offset from stage center, Z offset from stage center]
-      // Default position: centered in Y, positioned below stage center in Z
-      const stageDepth = stageDimensions?.[2] || 63.5;
-      const defaultZ = -stageDepth / 2 - 10 / 2; // -36.75 for default stock size
+      // Default position: machine home position
       onStockPositionChange([0, 0, 0]);
     } else {
       const { X, Y } = machineSettings.axes;
