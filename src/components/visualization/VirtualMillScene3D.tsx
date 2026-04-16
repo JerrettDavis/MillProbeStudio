@@ -1,7 +1,8 @@
 // src/components/visualization/VirtualMillScene3D.tsx
 import React from 'react';
 import { Scene3D } from './Scene3D';
-import { VirtualMillSimulationBridge, useVirtualMillContext } from './VirtualMillSimulationBridge';
+import { VirtualMillSimulationBridge } from './VirtualMillSimulationBridge';
+import { useVirtualMillContext } from './useVirtualMillContext';
 import { CollisionIndicator } from './CollisionIndicator';
 import type { Scene3DProps } from './Scene3D';
 
