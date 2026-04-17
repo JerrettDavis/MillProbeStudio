@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file. See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## <small>1.3.1 (2026-04-17)</small>
+
+* fix: add --legacy-peer-deps to npm install in CI workflows ([3dc3228](https://github.com/JerrettDavis/MillProbeStudio/commit/3dc3228))
+* fix: add --legacy-peer-deps to semantic-release install in CI ([33c3ce5](https://github.com/JerrettDavis/MillProbeStudio/commit/33c3ce5))
+* fix: clean up lint errors in StockControls and VirtualMillSimulationBridge ([d03ecdb](https://github.com/JerrettDavis/MillProbeStudio/commit/d03ecdb))
+* fix: Correct bounding box in CustomModelCollision.isPointInside ([e3851ef](https://github.com/JerrettDavis/MillProbeStudio/commit/e3851ef))
+* fix: extract useVirtualMillContext hook to separate file ([0a4c29c](https://github.com/JerrettDavis/MillProbeStudio/commit/0a4c29c))
+* fix: remove stale probeSequence prop from SimulationControls test ([cc81d9c](https://github.com/JerrettDavis/MillProbeStudio/commit/cc81d9c))
+* fix: resolve test pollution in App.test.tsx ([83017fa](https://github.com/JerrettDavis/MillProbeStudio/commit/83017fa))
+* fix: StockControls reset returns to home position [0,0,0] ([4c489ba](https://github.com/JerrettDavis/MillProbeStudio/commit/4c489ba))
+* fix: updated probing simulation contact point ([6e8ae49](https://github.com/JerrettDavis/MillProbeStudio/commit/6e8ae49))
+* Merge branch 'main' of https://github.com/JerrettDavis/MillProbeStudio into feature/add-probing-visu ([db09df0](https://github.com/JerrettDavis/MillProbeStudio/commit/db09df0))
+* Merge pull request #2 from JerrettDavis/copilot/fix-deps-update-workflow ([0bd5b47](https://github.com/JerrettDavis/MillProbeStudio/commit/0bd5b47)), closes [#2](https://github.com/JerrettDavis/MillProbeStudio/issues/2)
+* Merge pull request #2 from JerrettDavis/copilot/fix-deps-update-workflow ([d641621](https://github.com/JerrettDavis/MillProbeStudio/commit/d641621)), closes [#2](https://github.com/JerrettDavis/MillProbeStudio/issues/2)
+* Merge pull request #3 from JerrettDavis/feature/add-probing-visualizations ([e2fd4b8](https://github.com/JerrettDavis/MillProbeStudio/commit/e2fd4b8)), closes [#3](https://github.com/JerrettDavis/MillProbeStudio/issues/3)
+* chore: chugging through the refactor logic to move this to a virtual mill ([d1dfeb5](https://github.com/JerrettDavis/MillProbeStudio/commit/d1dfeb5))
+* chore: correcting linting, tests, etc ([d58e262](https://github.com/JerrettDavis/MillProbeStudio/commit/d58e262))
+* chore: remove debug scripts from codebase ([15d7c44](https://github.com/JerrettDavis/MillProbeStudio/commit/15d7c44))
+* chore: wiring up virtual mill to simulation ([dbe5b6d](https://github.com/JerrettDavis/MillProbeStudio/commit/dbe5b6d))
+* chore: working through the simulation and visualization logic ([5f6eadf](https://github.com/JerrettDavis/MillProbeStudio/commit/5f6eadf))
+* ci: fix dependency-updates workflow step ordering ([811472a](https://github.com/JerrettDavis/MillProbeStudio/commit/811472a))
+* ci: fix dependency-updates workflow step ordering ([461c5bd](https://github.com/JerrettDavis/MillProbeStudio/commit/461c5bd))
+
 ## 1.3.0 (2025-06-27)
 
 * fix: corrected building and linting issue with test file ([2264303](https://github.com/JerrettDavis/MillProbeStudio/commit/2264303))
