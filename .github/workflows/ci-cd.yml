@@ -30,12 +30,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: |
-          npm cache clean --force
-          rm -rf node_modules package-lock.json
-          npm install --legacy-peer-deps
-          # Explicitly reinstall rollup to fix optional dependencies
-          npm install rollup --force
+        run: npm ci --legacy-peer-deps
 
       - name: Run linting
         run: npm run lint
@@ -87,12 +82,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: |
-          npm cache clean --force
-          rm -rf node_modules package-lock.json
-          npm install --legacy-peer-deps
-          # Explicitly reinstall rollup to fix optional dependencies
-          npm install rollup --force
+        run: npm ci --legacy-peer-deps
 
       - name: Build application
         run: npm run build
@@ -130,12 +120,7 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: |
-          npm cache clean --force
-          rm -rf node_modules package-lock.json
-          npm install --legacy-peer-deps
-          # Explicitly reinstall rollup to fix optional dependencies
-          npm install rollup --force
+        run: npm ci --legacy-peer-deps
 
       - name: Download build artifacts
         uses: actions/download-artifact@v8
