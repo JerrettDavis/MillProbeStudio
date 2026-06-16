@@ -1,6 +1,6 @@
 import path from 'path'
 import tailwindcss from "@tailwindcss/vite"
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import tsconfigPaths from 'vite-tsconfig-paths';
 import { codecovVitePlugin } from "@codecov/vite-plugin";
@@ -26,40 +26,41 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          // React and core dependencies
-          'react-vendor': ['react', 'react-dom'],
-          
-          // Three.js core library (largest chunk)
-          'three-core': ['three'],
-          
-          // React Three Fiber and Drei (3D React utilities)
-          'three-react': ['@react-three/fiber', '@react-three/drei'],
-          
-          // Radix UI components (large bundle)
-          'ui-vendor': [
-            '@radix-ui/react-checkbox',
-            '@radix-ui/react-dialog', 
-            '@radix-ui/react-dropdown-menu',
-            '@radix-ui/react-label',
-            '@radix-ui/react-radio-group',
-            '@radix-ui/react-select',
-            '@radix-ui/react-separator',
-            '@radix-ui/react-slot',
-            '@radix-ui/react-tabs',
-            '@radix-ui/react-tooltip'
-          ],
-          
-          // Utility libraries
-          'utils-vendor': [
-            'clsx',
-            'tailwind-merge',
-            'class-variance-authority',
-            'lucide-react'
-          ],
-          
-          // Other UI libraries
-          'misc-vendor': ['react-resizable-panels']
+        manualChunks(id) {
+          if (!id.includes('node_modules')) {
+            return undefined;
+          }
+
+          if (id.includes('/react/') || id.includes('/react-dom/')) {
+            return 'react-vendor';
+          }
+
+          if (id.includes('/three/')) {
+            return 'three-core';
+          }
+
+          if (id.includes('/@react-three/')) {
+            return 'three-react';
+          }
+
+          if (id.includes('/@radix-ui/')) {
+            return 'ui-vendor';
+          }
+
+          if (
+            id.includes('/clsx/') ||
+            id.includes('/tailwind-merge/') ||
+            id.includes('/class-variance-authority/') ||
+            id.includes('/lucide-react/')
+          ) {
+            return 'utils-vendor';
+          }
+
+          if (id.includes('/react-resizable-panels/')) {
+            return 'misc-vendor';
+          }
+
+          return undefined;
         }
       }
     },
@@ -72,7 +73,6 @@ export default defineConfig({
     sourcemap: false
   },
   
-  // @ts-expect-error - Vite's test config is not fully typed
   test: {
     globals: true,
     environment: 'jsdom',
