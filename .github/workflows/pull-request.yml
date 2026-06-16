@@ -16,12 +16,12 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '20'
           cache: 'npm'
@@ -54,7 +54,7 @@ jobs:
           echo "statements=$STATEMENTS" >> $GITHUB_OUTPUT
 
       - name: Comment PR with coverage
-        uses: marocchino/sticky-pull-request-comment@v2
+        uses: marocchino/sticky-pull-request-comment@v3
         with:
           recreate: true
           message: |
@@ -82,7 +82,7 @@ jobs:
           fi
 
       - name: Archive test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: test-results-pr-${{ github.event.number }}
