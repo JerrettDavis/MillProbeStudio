@@ -35,7 +35,28 @@ updates:
       prefix: "chore(deps)"
     cooldown:
       default-days: 2
+    ignore:
+      - dependency-name: "undici"
     groups:
       npm-dependencies:
+        patterns:
+          - "*"
+
+  - package-ecosystem: "docker"
+    directory: "/tests/e2e"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "America/Chicago"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "chore(deps)"
+    cooldown:
+      default-days: 2
+    groups:
+      docker-dependencies:
         patterns:
           - "*"
