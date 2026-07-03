@@ -28,12 +28,17 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        # @codecov/vite-plugin@2.0.1 (latest published) only declares peer
+        # support for vite 4.x-6.x, but this repo runs vite 8. No published
+        # @codecov/vite-plugin version supports vite 8 yet, and downgrading
+        # vite would regress the app, so we tolerate the peer mismatch here
+        # rather than block dependency automation on an upstream lag.
+        run: npm ci --legacy-peer-deps
 
       - name: Update dependencies
         run: |
-          npm update
-          npm audit fix --force || true
+          npm update --legacy-peer-deps
+          npm audit fix --force --legacy-peer-deps || true
 
       - name: Run tests
         run: |
