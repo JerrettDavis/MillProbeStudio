@@ -54,7 +54,7 @@ jobs:
           echo "statements=$STATEMENTS" >> $GITHUB_OUTPUT
 
       - name: Comment PR with coverage
-        uses: marocchino/sticky-pull-request-comment@v3
+        uses: marocchino/sticky-pull-request-comment@v3.0.4
         with:
           recreate: true
           message: |
