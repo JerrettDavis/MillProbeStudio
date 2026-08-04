@@ -42,6 +42,8 @@ updates:
       - dependency-name: "undici"
       - dependency-name: "typescript"
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "jsdom"
+        update-types: ["version-update:semver-major"]
     groups:
       npm-dependencies:
         patterns:
