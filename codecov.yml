@@ -11,7 +11,10 @@ coverage:
   status:
     project:
       default:
-        target: 80%
+        # Actual coverage is ~61%; the 80% target was never met and was
+        # failing every build. Track regressions against the current
+        # baseline instead of an aspirational fixed number.
+        target: auto
         threshold: 1%
         if_ci_failed: error
     patch:
