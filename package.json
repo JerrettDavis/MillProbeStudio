@@ -108,10 +108,10 @@
     "globals": "^17.14.0",
     "jsdom": "^29.1.1",
     "rimraf": "^6.1.4",
-    "semantic-release": "^25.0.9",
+    "semantic-release": "^26.0.1",
     "tw-animate-css": "^1.3.4",
     "typescript": "~6.0.3",
-    "typescript-eslint": "^8.72.2",
+    "typescript-eslint": "^8.73.0",
     "vite": "^8.3.8",
     "vite-tsconfig-paths": "^6.1.1",
     "vitest": "^5.0.0"
