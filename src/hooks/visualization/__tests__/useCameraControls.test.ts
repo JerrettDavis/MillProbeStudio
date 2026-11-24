@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { useCameraControls } from '../useCameraControls';
 import type { MachineSettings } from '@/types/machine';
 import type { WorkspaceBounds, Position3D } from '@/utils/visualization/machineGeometry';
@@ -117,12 +117,11 @@ describe('useCameraControls', () => {
 
     expect(result.current.isAnimating).toBe(true);
 
-    // Wait for animation to complete with longer timeout
-    await new Promise(resolve => setTimeout(resolve, 200));
-
-    expect(result.current.isAnimating).toBe(false);
-    expect(result.current.currentPreset).toBe('front');
-    expect(mockOnPresetChange).toHaveBeenCalledWith('front');
+    await waitFor(() => {
+      expect(result.current.isAnimating).toBe(false);
+      expect(result.current.currentPreset).toBe('front');
+      expect(mockOnPresetChange).toHaveBeenCalledWith('front');
+    });
   });
 
   it('should prevent preset change while animating', () => {
@@ -187,11 +186,11 @@ describe('useCameraControls', () => {
 
       expect(result.current.isAnimating).toBe(true);
 
-      // Wait for animation
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      expect(result.current.currentPreset).toBe(preset);
-      expect(mockOnPresetChange).toHaveBeenCalledWith(preset);
+      await waitFor(() => {
+        expect(result.current.isAnimating).toBe(false);
+        expect(result.current.currentPreset).toBe(preset);
+        expect(mockOnPresetChange).toHaveBeenCalledWith(preset);
+      });
     }
   });
 
@@ -217,9 +216,7 @@ describe('useCameraControls', () => {
       });
     }).not.toThrow();
 
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    expect(result.current.currentPreset).toBe('front');
+    await waitFor(() => expect(result.current.currentPreset).toBe('front'));
   });
 
   it('should handle target position changes', () => {
